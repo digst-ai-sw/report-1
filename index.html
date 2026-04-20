@@ -1,1006 +1,719 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transformer Explainer - 샘플링 파라미터 실험 보고서</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 파라미터 실험 보고서 — Temperature · Top-P · Top-K</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=IBM+Plex+Mono:wght@400;600&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #14171f;
+    --surface2: #1c2030;
+    --border: #2a2f40;
+    --accent-temp: #f97316;
+    --accent-topp: #38bdf8;
+    --accent-topk: #a78bfa;
+    --text: #e8eaf2;
+    --text-dim: #8891a8;
+    --text-faint: #4a5068;
+    --green: #4ade80;
+    --red: #f87171;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
-            font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            min-height: 100vh;
-            color: #e0e0e0;
-            padding: 20px;
-        }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Pretendard', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
 
-        .container { max-width: 1100px; margin: 0 auto; }
+  /* ── COVER ── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 80px 10vw;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+  .cover::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 80% 40%, rgba(56,189,248,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 20% 80%, rgba(249,115,22,.06) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 40% at 60% 10%, rgba(167,139,250,.06) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .cover-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .2em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+  }
+  .cover-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: clamp(32px, 5vw, 62px);
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    max-width: 700px;
+  }
+  .cover-title span { color: var(--accent-temp); }
+  .cover-subtitle {
+    font-size: 17px;
+    color: var(--text-dim);
+    max-width: 560px;
+    margin-bottom: 48px;
+    line-height: 1.8;
+  }
+  .cover-meta {
+    display: flex; gap: 40px; flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+  .cover-meta strong { color: var(--text-dim); display: block; margin-bottom: 2px; }
 
-        /* ── 헤더 ── */
-        header { text-align: center; padding: 50px 20px 40px; }
-        .badge {
-            display: inline-block;
-            background: linear-gradient(90deg, #6c63ff, #48c6ef);
-            color: #fff; font-size: 0.75rem; font-weight: 700;
-            letter-spacing: 2px; text-transform: uppercase;
-            padding: 6px 18px; border-radius: 20px; margin-bottom: 18px;
-        }
-        header h1 { font-size: 2.2rem; font-weight: 800; color: #fff; line-height: 1.3; margin-bottom: 12px; }
-        header h1 span {
-            background: linear-gradient(90deg, #6c63ff, #48c6ef);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .subtitle { font-size: 1rem; color: #a0a8c0; margin-bottom: 8px; }
-        .meta-info { display: flex; justify-content: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
-        .meta-chip {
-            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 20px; padding: 5px 14px; font-size: 0.78rem; color: #8892b0;
-        }
+  /* ── LAYOUT ── */
+  .page { max-width: 900px; margin: 0 auto; padding: 80px 40px; }
 
-        .divider {
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(108,99,255,0.4), transparent);
-            margin: 10px 0 40px;
-        }
+  /* ── SECTION ── */
+  .section { margin-bottom: 80px; }
+  .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: .15em;
+    margin-bottom: 10px;
+  }
+  .section-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
 
-        /* ── 섹션 공통 ── */
-        section { margin-bottom: 52px; }
-        .section-number { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; color: #6c63ff; text-transform: uppercase; margin-bottom: 6px; }
-        .section-title { font-size: 1.4rem; font-weight: 800; color: #fff; margin-bottom: 6px; }
-        .section-subtitle { font-size: 0.85rem; color: #6c7a99; margin-bottom: 22px; }
-        .section-line { height: 2px; background: linear-gradient(90deg, #6c63ff, transparent); border-radius: 2px; margin-bottom: 24px; }
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-temp);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .callout.blue { border-left-color: var(--accent-topp); }
+  .callout.purple { border-left-color: var(--accent-topk); }
+  .callout.green { border-left-color: var(--green); }
+  .callout strong { color: var(--text); }
 
-        /* ── 스토리 카드 ── */
-        .story-card {
-            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09);
-            border-radius: 16px; padding: 28px 32px; line-height: 1.95;
-            font-size: 0.95rem; color: #c0c8e0; position: relative; overflow: hidden;
-        }
-        .story-card::before {
-            content: '"'; position: absolute; top: -10px; left: 20px;
-            font-size: 8rem; color: rgba(108,99,255,0.08); font-family: Georgia, serif; line-height: 1;
-        }
-        .story-card p { margin-bottom: 14px; position: relative; z-index: 1; }
-        .story-card p:last-child { margin-bottom: 0; }
-        .story-card strong { color: #a89cff; font-weight: 700; }
-        .story-card em { color: #48c6ef; font-style: normal; font-weight: 600; }
+  /* ── TABLE ── */
+  .tbl-wrap { overflow-x: auto; margin: 24px 0; border-radius: 10px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: var(--surface2);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: .08em;
+    color: var(--text-faint);
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(42,47,64,.5);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .mono { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-orange { background: rgba(249,115,22,.15); color: var(--accent-temp); }
+  .badge-blue   { background: rgba(56,189,248,.15);  color: var(--accent-topp); }
+  .badge-purple { background: rgba(167,139,250,.15); color: var(--accent-topk); }
 
-        /* ── 미션 박스 ── */
-        .mission-box {
-            background: linear-gradient(135deg, rgba(108,99,255,0.13), rgba(72,198,239,0.08));
-            border: 1px solid rgba(108,99,255,0.35); border-radius: 14px; padding: 22px 26px; margin-top: 20px;
-        }
-        .mission-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 2px; color: #a89cff; text-transform: uppercase; margin-bottom: 14px; }
-        .mission-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
-        .mission-list li { display: flex; align-items: flex-start; gap: 12px; font-size: 0.9rem; color: #b8c4dc; line-height: 1.7; }
-        .mission-num {
-            display: flex; align-items: center; justify-content: center;
-            width: 22px; height: 22px; background: linear-gradient(135deg, #6c63ff, #48c6ef);
-            border-radius: 50%; font-size: 0.68rem; font-weight: 700; color: #fff; flex-shrink: 0; margin-top: 2px;
-        }
+  /* ── CHART WRAPPER ── */
+  .chart-block { margin: 32px 0; }
+  .chart-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--text-faint);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .chart-canvas-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    position: relative;
+  }
+  canvas { display: block; width: 100% !important; }
 
-        /* ════════════════════════════════
-           ★ 극단 케이스 비교 섹션
-        ════════════════════════════════ */
-        .extreme-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 22px;
-            margin-bottom: 28px;
-        }
-        @media (max-width: 700px) { .extreme-grid { grid-template-columns: 1fr; } }
+  /* ── HYPOTHESIS CARDS ── */
+  .hypo-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 16px; margin: 24px 0; }
+  .hypo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hypo-card::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .hypo-card.t::after  { background: var(--accent-temp); }
+  .hypo-card.p::after  { background: var(--accent-topp); }
+  .hypo-card.k::after  { background: var(--accent-topk); }
+  .hypo-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .hypo-card.t .hypo-tag { color: var(--accent-temp); }
+  .hypo-card.p .hypo-tag { color: var(--accent-topp); }
+  .hypo-card.k .hypo-tag { color: var(--accent-topk); }
+  .hypo-text { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
 
-        .extreme-card {
-            border-radius: 18px;
-            padding: 26px;
-            position: relative;
-            overflow: hidden;
-        }
-        .extreme-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 4px;
-        }
+  /* ── RESULT VERDICT ── */
+  .verdict-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 16px; margin: 24px 0; }
+  .verdict-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 20px;
+  }
+  .verdict-icon { font-size: 22px; margin-bottom: 10px; }
+  .verdict-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .verdict-body { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
 
-        /* Temperature 10 카드 */
-        .ext-hot {
-            background: linear-gradient(145deg, rgba(255,60,60,0.1), rgba(255,140,0,0.07));
-            border: 1px solid rgba(255,80,80,0.3);
-        }
-        .ext-hot::before { background: linear-gradient(90deg, #ff3c3c, #ff8c00); }
+  /* ── FIGURE CAPTION ── */
+  .fig-caption {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 10px;
+    font-style: italic;
+    text-align: center;
+  }
 
-        /* Temperature 4 카드 */
-        .ext-warm {
-            background: linear-gradient(145deg, rgba(255,165,0,0.1), rgba(255,200,0,0.06));
-            border: 1px solid rgba(255,165,0,0.3);
-        }
-        .ext-warm::before { background: linear-gradient(90deg, #ffaa00, #ffe000); }
+  /* ── CONCLUSION BOX ── */
+  .conclusion-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin: 24px 0;
+  }
+  .conclusion-box h3 {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .conclusion-box p { font-size: 14px; color: var(--text-dim); line-height: 1.9; margin-bottom: 12px; }
+  .conclusion-box p:last-child { margin-bottom: 0; }
 
-        .ext-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 18px;
-        }
-        .ext-label-group {}
-        .ext-tag {
-            display: inline-block;
-            font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px;
-            text-transform: uppercase; padding: 3px 10px; border-radius: 8px;
-            margin-bottom: 8px;
-        }
-        .tag-hot  { background: rgba(255,60,60,0.2); color: #ff7070; }
-        .tag-warm { background: rgba(255,165,0,0.2); color: #ffb700; }
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 60px 0;
+  }
 
-        .ext-temp-num {
-            font-size: 2.8rem; font-weight: 900; line-height: 1;
-        }
-        .hot-num  { color: #ff4444; text-shadow: 0 0 20px rgba(255,60,60,0.4); }
-        .warm-num { color: #ffaa00; text-shadow: 0 0 20px rgba(255,170,0,0.4); }
-
-        .ext-temp-unit { font-size: 0.85rem; color: #6c7a99; margin-top: 4px; }
-
-        .ext-sampling-info {
-            display: flex; gap: 8px; align-items: center;
-            margin-bottom: 16px; flex-wrap: wrap;
-        }
-        .sinfo-badge {
-            font-size: 0.73rem; font-weight: 600; padding: 3px 10px;
-            border-radius: 7px;
-        }
-        .sinfo-topp { background: rgba(100,220,150,0.12); color: #64dc96; border: 1px solid rgba(100,220,150,0.22); }
-        .sinfo-none { background: rgba(255,255,255,0.06); color: #8892b0; border: 1px solid rgba(255,255,255,0.1); }
-
-        .ext-selected-word {
-            font-size: 0.78rem; color: #8892b0; margin-bottom: 14px;
-        }
-        .selected-highlight-red    { font-weight: 700; font-size: 1rem; color: #ff7070; }
-        .selected-highlight-orange { font-weight: 700; font-size: 1rem; color: #ffaa00; }
-
-        /* 확률 분포 바 */
-        .prob-list { display: flex; flex-direction: column; gap: 7px; }
-
-        .prob-row {
-            display: grid;
-            grid-template-columns: 70px 1fr 52px;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .prob-word {
-            font-family: 'Courier New', monospace;
-            font-size: 0.78rem;
-            color: #8892b0;
-            text-align: right;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .prob-word.is-selected-red    { color: #ff7070; font-weight: 700; }
-        .prob-word.is-selected-orange { color: #ffa500; font-weight: 700; }
-
-        .prob-bar-bg {
-            height: 8px; border-radius: 4px;
-            background: rgba(255,255,255,0.05); overflow: hidden;
-        }
-        .prob-bar-fill { height: 100%; border-radius: 4px; }
-
-        /* 균등 분포 → 모두 비슷한 빨간색 계열 */
-        .fill-flat-red    { background: linear-gradient(90deg, #ff4444, #ff8800); }
-        .fill-flat-orange { background: linear-gradient(90deg, #ffaa00, #ffe000); }
-        .fill-flat-sel-orange { background: linear-gradient(90deg, #ffa500, #ffdd00); }
-        .fill-dim         { background: rgba(255,255,255,0.12); }
-
-        .prob-pct {
-            font-size: 0.73rem;
-            font-weight: 600;
-            text-align: right;
-        }
-        .pct-red    { color: #ff7070; }
-        .pct-orange { color: #ffaa00; }
-        .pct-sel-orange { color: #ffd700; font-weight: 700; }
-        .pct-dim    { color: #5a6280; }
-
-        /* 설명 박스 */
-        .ext-insight {
-            margin-top: 16px;
-            padding: 12px 14px;
-            border-radius: 10px;
-            font-size: 0.82rem;
-            line-height: 1.7;
-        }
-        .insight-hot  { background: rgba(255,60,60,0.08); border-left: 3px solid #ff4444; color: #cc8888; }
-        .insight-warm { background: rgba(255,165,0,0.08); border-left: 3px solid #ffaa00; color: #cc9944; }
-
-        .ext-more-indicator {
-            text-align: center;
-            padding: 8px;
-            font-size: 0.72rem;
-            color: #4a5270;
-            letter-spacing: 1px;
-        }
-
-        /* ════════════════════════════════
-           비교 요약 테이블
-        ════════════════════════════════ */
-        .compare-summary {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.09);
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 28px;
-        }
-
-        .compare-summary-title {
-            background: rgba(108,99,255,0.15);
-            padding: 14px 20px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #a89cff;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-        }
-
-        .compare-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-        .compare-table th {
-            padding: 12px 16px; text-align: left;
-            color: #6c7a99; font-size: 0.72rem; font-weight: 700;
-            letter-spacing: 1.5px; text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.07);
-            background: rgba(0,0,0,0.1);
-        }
-        .compare-table td {
-            padding: 13px 16px; color: #c0c8e0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            vertical-align: middle;
-        }
-        .compare-table tr:last-child td { border-bottom: none; }
-
-        /* ════════════════════════════════
-           메인 실험 데이터 테이블
-        ════════════════════════════════ */
-        .table-outer-wrap {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 18px; overflow: hidden;
-        }
-        .legend-bar {
-            display: flex; align-items: center; gap: 20px;
-            padding: 14px 22px; background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.07); flex-wrap: wrap;
-        }
-        .legend-bar span { font-size: 0.72rem; color: #6c7a99; display: flex; align-items: center; gap: 6px; }
-        .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-        .leg-blue   { background: rgba(72,198,239,0.5); }
-        .leg-purple { background: rgba(108,99,255,0.5); }
-        .leg-orange { background: rgba(255,165,0,0.6); }
-        .leg-red    { background: rgba(255,60,60,0.6); }
-        .leg-topk   { background: rgba(255,100,100,0.5); }
-        .leg-topp   { background: rgba(100,220,150,0.5); }
-
-        .table-scroll { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
-        thead tr { background: rgba(108,99,255,0.18); }
-        thead th {
-            padding: 13px 14px; text-align: left; color: #a89cff;
-            font-size: 0.7rem; font-weight: 700; letter-spacing: 1.5px;
-            text-transform: uppercase; white-space: nowrap;
-        }
-        tbody tr { border-bottom: 1px solid rgba(255,255,255,0.045); transition: background 0.2s; }
-        tbody tr:hover { filter: brightness(1.12); }
-        tbody tr:last-child { border-bottom: none; }
-        tbody td { padding: 11px 14px; color: #c0c8e0; vertical-align: middle; white-space: nowrap; }
-
-        /* 행 색상 */
-        .rw-blue   { background: rgba(72,198,239,0.045); }
-        .rw-purple { background: rgba(108,99,255,0.045); }
-        .rw-orange { background: rgba(255,165,0,0.06); border-left: 3px solid rgba(255,165,0,0.5); }
-        .rw-red    { background: rgba(255,60,60,0.07); border-left: 3px solid rgba(255,60,60,0.5); }
-        .rw-warm   { background: rgba(255,165,0,0.09); border-left: 3px solid rgba(255,200,0,0.6); }
-
-        /* 셀 스타일 */
-        .exp-num { font-weight: 800; font-size: 0.82rem; color: #5a56cc; text-align: center; }
-        .rw-orange .exp-num { color: #ffa500; }
-        .rw-red    .exp-num { color: #ff5555; }
-        .rw-warm   .exp-num { color: #ffbb00; }
-        .input-code { font-family: 'Courier New', monospace; color: #48c6ef; font-size: 0.82rem; }
-
-        .tbadge {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 4px 11px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;
-        }
-        .tbadge-02 { background: rgba(72,198,239,0.15); color: #48c6ef; border:1px solid rgba(72,198,239,0.25); }
-        .tbadge-03 { background: rgba(108,99,255,0.15); color: #a89cff; border:1px solid rgba(108,99,255,0.25); }
-        .tbadge-05 { background: rgba(255,165,0,0.15);  color: #ffa500; border:1px solid rgba(255,165,0,0.3); }
-        .tbadge-04 { background: rgba(255,200,0,0.15);  color: #ffcc00; border:1px solid rgba(255,200,0,0.3); }
-        .tbadge-10 { background: rgba(255,60,60,0.15);  color: #ff5555; border:1px solid rgba(255,60,60,0.3); }
-
-        .sbadge { display: inline-block; padding: 3px 10px; border-radius: 7px; font-size: 0.73rem; font-weight: 700; }
-        .sbadge-k { background: rgba(255,100,100,0.13); color: #ff8080; border:1px solid rgba(255,100,100,0.22); }
-        .sbadge-p { background: rgba(100,220,150,0.12); color: #64dc96; border:1px solid rgba(100,220,150,0.22); }
-
-        .val-text { font-family: 'Courier New', monospace; font-size: 0.8rem; color: #8892b0; }
-        .result-cell { font-family: 'Courier New', monospace; font-size: 0.8rem; }
-        .word-top  { color: #ffd700; font-weight: 700; }
-        .word-rest { color: #606880; }
-        .rw-orange .word-top { color: #ff9900; }
-        .rw-red    .word-top { color: #ff5555; }
-        .rw-warm   .word-top { color: #ffbb00; }
-
-        .pct-cell { min-width: 180px; }
-        .pct-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-        .pct-row:last-child { margin-bottom: 0; }
-        .pct-word-label { font-size: 0.68rem; color: #555e7a; width: 58px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
-        .pct-bar-bg { flex: 1; height: 5px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; min-width: 40px; }
-        .pct-bar-fill { height: 100%; border-radius: 3px; }
-        .fill-blue   { background: linear-gradient(90deg, #48c6ef, #0099cc); }
-        .fill-purple { background: linear-gradient(90deg, #a89cff, #6c63ff); }
-        .fill-orange { background: linear-gradient(90deg, #ffa500, #ff6b00); }
-        .fill-green  { background: linear-gradient(90deg, #64dc96, #00b050); }
-        .fill-red    { background: linear-gradient(90deg, #ff5555, #cc2200); }
-        .fill-yellow { background: linear-gradient(90deg, #ffcc00, #ff8800); }
-        .fill-dim    { background: rgba(255,255,255,0.12); }
-        .pct-val { font-size: 0.7rem; width: 52px; text-align: right; flex-shrink: 0; }
-        .pct-val-hi     { color: #ffd700; font-weight: 700; }
-        .pct-val-mid    { color: #8892b0; }
-        .pct-val-lo     { color: #444c62; }
-        .pct-val-orange { color: #ffa500; font-weight: 700; }
-        .pct-val-100    { color: #64dc96; font-weight: 700; }
-        .pct-val-red    { color: #ff6666; font-weight: 700; }
-        .pct-val-yellow { color: #ffcc00; font-weight: 700; }
-
-        /* 주목 박스 */
-        .notice-box {
-            margin-top: 16px; background: rgba(255,165,0,0.07);
-            border: 1px dashed rgba(255,165,0,0.35); border-radius: 12px;
-            padding: 16px 20px; font-size: 0.85rem; color: #c0a060; line-height: 1.8;
-        }
-        .notice-box code { background: rgba(255,255,255,0.08); padding: 1px 7px; border-radius: 4px; font-size: 0.8rem; }
-
-        /* ── 가설 카드 ── */
-        .hypo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 18px; }
-        .hypo-card { border-radius: 16px; padding: 24px; position: relative; overflow: hidden; transition: transform 0.3s; }
-        .hypo-card:hover { transform: translateY(-3px); }
-        .hypo-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-        .hypo-temp  { background: rgba(255,165,0,0.09); border: 1px solid rgba(255,165,0,0.22); }
-        .hypo-temp::after { background: linear-gradient(90deg,#ff8c00,#ffcc00); }
-        .hypo-topk  { background: rgba(72,198,239,0.09); border: 1px solid rgba(72,198,239,0.22); }
-        .hypo-topk::after { background: linear-gradient(90deg,#48c6ef,#0099cc); }
-        .hypo-topp  { background: rgba(108,99,255,0.09); border: 1px solid rgba(108,99,255,0.25); }
-        .hypo-topp::after { background: linear-gradient(90deg,#6c63ff,#a855f7); }
-        .hypo-icon  { font-size: 2rem; margin-bottom: 10px; }
-        .hypo-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
-        .hypo-temp .hypo-label { color: #ffa500; }
-        .hypo-topk .hypo-label { color: #48c6ef; }
-        .hypo-topp .hypo-label { color: #a89cff; }
-        .hypo-title { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
-        .hypo-body  { font-size: 0.85rem; line-height: 1.75; color: #b0bcd8; }
-        .hypo-temp .hypo-body strong { color: #ffd580; }
-        .hypo-topk .hypo-body strong { color: #7de8ff; }
-        .hypo-topp .hypo-body strong { color: #c4b0ff; }
-        .analogy-box {
-            display: flex; align-items: flex-start; gap: 10px;
-            background: rgba(255,165,0,0.07); border: 1px dashed rgba(255,165,0,0.28);
-            border-radius: 10px; padding: 11px 13px; margin-top: 12px;
-        }
-        .analogy-icon { font-size: 1.1rem; flex-shrink: 0; }
-        .analogy-text { font-size: 0.77rem; line-height: 1.65; color: #b09050; }
-
-        footer {
-            text-align: center; padding: 28px 0 18px; font-size: 0.77rem; color: #3a4260;
-            border-top: 1px solid rgba(255,255,255,0.05); margin-top: 10px;
-        }
-
-        @media (max-width: 640px) {
-            header h1 { font-size: 1.5rem; }
-            .story-card { padding: 20px 16px; }
-        }
-    </style>
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
 </head>
 <body>
-<div class="container">
 
-    <!-- ══════════ 헤더 ══════════ -->
-    <header>
-        <div class="badge">🔬 영재원 AI 탐구 실험 보고서</div>
-        <h1>Transformer Explainer<br><span>샘플링 파라미터 분석</span></h1>
-        <p class="subtitle">"The robots is ___" — AI는 다음 단어를 어떻게 고를까?</p>
-        <div class="meta-info">
-            <span class="meta-chip">📌 도구: Transformer Explainer</span>
-            <span class="meta-chip">🧪 총 14회 실험</span>
-            <span class="meta-chip">📝 입력: "The robots is"</span>
-            <span class="meta-chip">🌡️ Temperature 0.2 ~ 10</span>
-        </div>
-    </header>
-
-    <div class="divider"></div>
-
-    <!-- ══════════ 1.1 실험 배경 ══════════ -->
-    <section>
-        <div class="section-number">1.1</div>
-        <div class="section-title">🏫 실험 배경</div>
-        <p class="section-subtitle">이 실험을 시작하게 된 이유</p>
-        <div class="section-line"></div>
-
-        <div class="story-card">
-            <p>
-                나는 <strong>영재원 수업</strong>에서 <em>Transformer Explainer</em>라는 도구를 이용해
-                AI가 다음 단어를 예측하는 방식을 탐구하는 미션을 받았다.
-                핵심 질문은 "<strong>Temperature, Top-K, Top-P라는 세 파라미터를
-                바꾸면 AI의 결과가 어떻게 달라질까?</strong>"였다.
-            </p>
-            <p>
-                ChatGPT 같은 AI를 쓰다 보면 가끔은 너무 뻔한 대답만 하고,
-                가끔은 뜬금없이 이상한 말을 한다는 것을 느꼈다.
-                이번 실험을 통해 그 비밀이 바로 <strong>'샘플링 파라미터'</strong>에 있다는 것을
-                직접 확인하고 싶었다.
-            </p>
-            <p>
-                실험은 <em>"The robots is"</em>를 입력 문장으로 고정하고,
-                Temperature를 <strong>0.2 / 0.3 / 0.5 / 4 / 10</strong>으로 다양하게 조절하며
-                샘플링 방식을 <strong>Top-K</strong>와 <strong>Top-P</strong>로 나눠
-                총 <strong>14번</strong> 진행했다.
-            </p>
-        </div>
-
-        <div class="mission-box">
-            <div class="mission-label">🎯 실험 목적 — 아래 세 가지를 확인하고자 했다</div>
-            <ul class="mission-list">
-                <li>
-                    <span class="mission-num">1</span>
-                    <span><strong style="color:#ffd580;">Temperature</strong>를 높이거나 낮추면 단어 확률 분포가 얼마나 달라지는지 확인한다.</span>
-                </li>
-                <li>
-                    <span class="mission-num">2</span>
-                    <span><strong style="color:#7de8ff;">Top-K</strong>와 <strong style="color:#c4b0ff;">Top-P</strong>가 단어 후보를 골라내는 방식의 차이를 비교한다.</span>
-                </li>
-                <li>
-                    <span class="mission-num">3</span>
-                    <span>어떤 파라미터 조합이 <strong style="color:#a89cff;">가장 자연스럽고 다양한</strong> 단어 후보를 만드는지 찾아본다.</span>
-                </li>
-            </ul>
-        </div>
-    </section>
-
-    <!-- ══════════ 극단 케이스 비교 ══════════ -->
-    <section>
-        <div class="section-number">1.2-A</div>
-        <div class="section-title">🔥 극단적 Temperature 비교 실험</div>
-        <p class="section-subtitle">Temperature 10 vs Temperature 4 — 확률 분포가 얼마나 달라지는가?</p>
-        <div class="section-line"></div>
-
-        <div class="extreme-grid">
-
-            <!-- ── Temperature 10 카드 ── -->
-            <div class="extreme-card ext-hot">
-                <div class="ext-header">
-                    <div class="ext-label-group">
-                        <div class="ext-tag tag-hot">🔴 극고온 · Temp</div>
-                        <div class="ext-temp-num hot-num">10</div>
-                        <div class="ext-temp-unit">Top-K 방식 (기본)</div>
-                    </div>
-                </div>
-
-                <div class="ext-selected-word">
-                    선택된 단어: <span class="selected-highlight-red">designed</span>
-                    &nbsp;(5위 단어가 선택됨)
-                </div>
-
-                <div class="prob-list">
-                    <div class="prob-row">
-                        <span class="prob-word">a</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:52%"></div></div>
-                        <span class="prob-pct pct-red">5.03%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">the</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:45%"></div></div>
-                        <span class="prob-pct pct-red">4.42%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">also</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:45%"></div></div>
-                        <span class="prob-pct pct-red">4.41%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">not</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:44%"></div></div>
-                        <span class="prob-pct pct-red">4.38%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word is-selected-red">designed ★</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:44%"></div></div>
-                        <span class="prob-pct pct-red" style="color:#ff4444;font-weight:800;">4.35%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">an</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:43%"></div></div>
-                        <span class="prob-pct pct-red">4.31%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">now</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:43%"></div></div>
-                        <span class="prob-pct pct-red">4.25%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">still</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:42%"></div></div>
-                        <span class="prob-pct pct-red">4.19%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">called</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:42%"></div></div>
-                        <span class="prob-pct pct-red">4.13%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">based</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-red" style="width:42%"></div></div>
-                        <span class="prob-pct pct-red">4.13%</span>
-                    </div>
-                </div>
-                <div class="ext-more-indicator">▼ so 4.12% · being 4.11% · built 4.09% · able 4.08% · currently 4.07% ···</div>
-
-                <div class="ext-insight insight-hot">
-                    🔥 <strong style="color:#ff6666;">완전히 평평한 분포!</strong>
-                    1위(5.03%)와 꼴찌(~4%)의 차이가 겨우 1% 미만.
-                    어떤 단어가 선택될지 예측이 거의 불가능하다.
-                    5위 단어인 <strong style="color:#ff9999;">"designed"</strong>가 선택된 것도
-                    이 때문이다.
-                </div>
-            </div>
-
-            <!-- ── Temperature 4 카드 ── -->
-            <div class="extreme-card ext-warm">
-                <div class="ext-header">
-                    <div class="ext-label-group">
-                        <div class="ext-tag tag-warm">🟡 고온 · Temp</div>
-                        <div class="ext-temp-num warm-num">4</div>
-                        <div class="ext-temp-unit">Top-P · p = 0.5</div>
-                    </div>
-                </div>
-
-                <div class="ext-selected-word">
-                    선택된 단어: <span class="selected-highlight-orange">also</span>
-                    &nbsp;(3위 단어가 선택됨)
-                </div>
-
-                <div class="prob-list">
-                    <div class="prob-row">
-                        <span class="prob-word">a</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:72%"></div></div>
-                        <span class="prob-pct pct-orange">7.14%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">the</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:52%"></div></div>
-                        <span class="prob-pct pct-orange">5.17%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word is-selected-orange">also ★</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-sel-orange" style="width:51%"></div></div>
-                        <span class="prob-pct pct-sel-orange">5.12%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">not</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:50%"></div></div>
-                        <span class="prob-pct pct-orange">5.04%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">designed</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:49%"></div></div>
-                        <span class="prob-pct pct-orange">4.96%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">an</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:48%"></div></div>
-                        <span class="prob-pct pct-orange">4.86%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">now</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:47%"></div></div>
-                        <span class="prob-pct pct-orange">4.67%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">still</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:45%"></div></div>
-                        <span class="prob-pct pct-orange">4.53%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">called</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:43%"></div></div>
-                        <span class="prob-pct pct-orange">4.36%</span>
-                    </div>
-                    <div class="prob-row">
-                        <span class="prob-word">based</span>
-                        <div class="prob-bar-bg"><div class="prob-bar-fill fill-flat-orange" style="width:43%"></div></div>
-                        <span class="prob-pct pct-orange">4.35%</span>
-                    </div>
-                </div>
-                <div class="ext-more-indicator">▼ so 4.33% · being 4.30% · built 4.25% · able 4.23% · currently 4.19% ···</div>
-
-                <div class="ext-insight insight-warm">
-                    🟡 <strong style="color:#ffcc00;">여전히 평평하지만 격차 존재.</strong>
-                    1위 "a"(7.14%)와 나머지의 차이가 약 2% 수준으로,
-                    Temperature 10보다는 약간 집중되어 있다.
-                    Top-P p=0.5 설정으로 상위 후보만 포함되어
-                    3위 <strong style="color:#ffd700;">"also"</strong>가 선택되었다.
-                </div>
-            </div>
-
-        </div>
-
-        <!-- 비교 요약 테이블 -->
-        <div class="compare-summary">
-            <div class="compare-summary-title">📊 Temperature별 확률 집중도 비교 요약</div>
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th>Temperature</th>
-                        <th>1위 단어</th>
-                        <th>1위 확률</th>
-                        <th>2위 확률</th>
-                        <th>격차 (1위 - 2위)</th>
-                        <th>선택된 단어</th>
-                        <th>특징</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><span class="tbadge tbadge-02">0.2</span></td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#48c6ef;font-weight:700;">99.47%</td>
-                        <td style="color:#6c7a99;">&lt;0.01%</td>
-                        <td style="color:#48c6ef;font-weight:700;">~99.46%p</td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#8892b0;font-size:0.8rem;">완전 집중 · 항상 동일</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tbadge tbadge-03">0.3</span></td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#a89cff;font-weight:700;">93~95%</td>
-                        <td style="color:#6c7a99;">1%</td>
-                        <td style="color:#a89cff;font-weight:700;">~92~94%p</td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#8892b0;font-size:0.8rem;">여전히 집중</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tbadge tbadge-05">0.5</span></td>
-                        <td style="font-family:monospace;color:#ffd700;">bit</td>
-                        <td style="color:#ffa500;font-weight:700;">62~71%</td>
-                        <td style="color:#6c7a99;">16~19%</td>
-                        <td style="color:#ffa500;font-weight:700;">~43~55%p</td>
-                        <td style="font-family:monospace;color:#ffd700;">bit</td>
-                        <td style="color:#8892b0;font-size:0.8rem;">후보 단어 자체가 바뀜</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tbadge tbadge-04">4</span></td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#ffcc00;font-weight:700;">7.14%</td>
-                        <td style="color:#6c7a99;">5.17%</td>
-                        <td style="color:#ffcc00;font-weight:700;">~1.97%p</td>
-                        <td style="font-family:monospace;color:#ffbb00;">also (3위)</td>
-                        <td style="color:#8892b0;font-size:0.8rem;">Top-P가 3위 단어 선택</td>
-                    </tr>
-                    <tr>
-                        <td><span class="tbadge tbadge-10">10</span></td>
-                        <td style="font-family:monospace;color:#ffd700;">a</td>
-                        <td style="color:#ff5555;font-weight:700;">5.03%</td>
-                        <td style="color:#6c7a99;">4.42%</td>
-                        <td style="color:#ff5555;font-weight:700;">~0.61%p</td>
-                        <td style="font-family:monospace;color:#ff7070;">designed (5위)</td>
-                        <td style="color:#ff8080;font-size:0.8rem;">⚠️ 완전 평탄 · 예측 불가</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="notice-box">
-            ⚠️ <strong style="color:#ffa500;">핵심 관찰:</strong>
-            Temperature가 <code>0.2</code>일 때는 "a"가 <strong>99.47%</strong>로 사실상 결정되어 있었지만,
-            <code>10</code>으로 올리면 상위 20개 단어가 모두 <strong>4~5%대</strong>로 평탄해져
-            5위인 <strong style="color:#ff7070;">"designed"</strong>가 선택되었다.
-            이것은 Temperature가 높을수록 <strong>확률 분포를 고르게 펴는 역할</strong>을 한다는
-            가설 1을 강력히 뒷받침하는 결과다.
-        </div>
-    </section>
-
-    <!-- ══════════ 1.2 메인 실험 데이터 ══════════ -->
-    <section>
-        <div class="section-number">1.2-B</div>
-        <div class="section-title">📊 전체 실험 데이터</div>
-        <p class="section-subtitle">Temperature 0.2~0.5 구간 12회 + 극단 케이스 2회, 총 14회 실험</p>
-        <div class="section-line"></div>
-
-        <div class="table-outer-wrap">
-            <div class="legend-bar">
-                <span><span class="leg-dot leg-blue"></span>Temp 0.2</span>
-                <span><span class="leg-dot leg-purple"></span>Temp 0.3</span>
-                <span><span class="leg-dot leg-orange"></span>Temp 0.5 ★</span>
-                <span><span class="leg-dot" style="background:rgba(255,200,0,0.7);"></span>Temp 4</span>
-                <span><span class="leg-dot leg-red"></span>Temp 10 🔥</span>
-                <span><span class="leg-dot leg-topk"></span>Top-K</span>
-                <span><span class="leg-dot leg-topp"></span>Top-P</span>
-            </div>
-
-            <div class="table-scroll">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="text-align:center;">#</th>
-                        <th>입력</th>
-                        <th>Temp.</th>
-                        <th>Sampling</th>
-                        <th>값</th>
-                        <th>결과 단어 (상위)</th>
-                        <th>percnts (%)</th>
-                    </tr>
-                </thead>
-                <tbody>
-
-                <!-- 실험 1~4: Temp 0.2, Top-K -->
-                <tr class="rw-blue">
-                    <td class="exp-num">1</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=5</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-blue" style="width:99.47%"></div></div><span class="pct-val pct-val-hi">99.47%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.01%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-blue">
-                    <td class="exp-num">2</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=6</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-blue" style="width:99.47%"></div></div><span class="pct-val pct-val-hi">99.47%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">designed</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.00%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-blue">
-                    <td class="exp-num">3</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=7</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-blue" style="width:99.47%"></div></div><span class="pct-val pct-val-hi">99.47%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.01%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-blue">
-                    <td class="exp-num">4</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=8</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-blue" style="width:99.47%"></div></div><span class="pct-val pct-val-hi">99.47%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.01%</span></div>
-                    </td>
-                </tr>
-
-                <!-- 실험 5~7: Temp 0.2, Top-P -->
-                <tr class="rw-blue">
-                    <td class="exp-num">5</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.5</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-green" style="width:100%"></div></div><span class="pct-val pct-val-100">100%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:0%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-blue">
-                    <td class="exp-num">6</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.6</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-green" style="width:100%"></div></div><span class="pct-val pct-val-100">100%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:0%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-blue">
-                    <td class="exp-num">7</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-02">0.2</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.7</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-green" style="width:100%"></div></div><span class="pct-val pct-val-100">100%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:0%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                    </td>
-                </tr>
-
-                <!-- 실험 8~10: Temp 0.3 -->
-                <tr class="rw-purple">
-                    <td class="exp-num">8</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-03">0.3</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=5</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:95%"></div></div><span class="pct-val" style="color:#a89cff;font-weight:700;">95%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:5%;opacity:0.5"></div></div><span class="pct-val pct-val-mid">1%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">also</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:5%;opacity:0.5"></div></div><span class="pct-val pct-val-mid">1%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">not~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.01%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-purple" style="outline:2px solid rgba(100,220,150,0.4);outline-offset:-1px;">
-                    <td class="exp-num">9</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-03">0.3</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.5</td>
-                    <td class="result-cell" style="position:relative;">
-                        <span style="position:absolute;top:3px;right:4px;font-size:0.58rem;color:#64dc96;background:rgba(100,220,150,0.1);border:1px solid rgba(100,220,150,0.3);padding:1px 4px;border-radius:3px;">스샷 강조</span>
-                        <span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span>
-                    </td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-green" style="width:100%"></div></div><span class="pct-val pct-val-100">100%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:0%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-purple">
-                    <td class="exp-num">10</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-03">0.3</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=1</td>
-                    <td class="result-cell"><span class="word-top">a</span><span class="word-rest">, the, also, not, designed</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:93%"></div></div><span class="pct-val" style="color:#a89cff;font-weight:700;">93%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:5%;opacity:0.5"></div></div><span class="pct-val pct-val-mid">1%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">also</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-purple" style="width:5%;opacity:0.5"></div></div><span class="pct-val pct-val-mid">1%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">not~</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">&lt;0.01%</span></div>
-                    </td>
-                </tr>
-
-                <!-- 실험 11~12: Temp 0.5 ★ -->
-                <tr class="rw-orange">
-                    <td class="exp-num">11</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-05">0.5</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">k=5</td>
-                    <td class="result-cell"><span class="word-top">bit</span><span class="word-rest">, little, combunation, very, new</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">bit</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:62%"></div></div><span class="pct-val pct-val-orange">62%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">little</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:16%;opacity:0.7"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">16%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">combunation</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:8%;opacity:0.5"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">8%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">very</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:6%;opacity:0.4"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">6%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">new</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:6%;opacity:0.4"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">6%</span></div>
-                    </td>
-                </tr>
-                <tr class="rw-orange">
-                    <td class="exp-num">12</td><td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-05">0.5</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.5</td>
-                    <td class="result-cell"><span class="word-top">bit</span><span class="word-rest">, little, combunation, very, new</span></td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">bit</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:71%"></div></div><span class="pct-val pct-val-orange">71%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">little</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:19%;opacity:0.7"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">19%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">combunation</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-orange" style="width:9%;opacity:0.5"></div></div><span class="pct-val pct-val-mid" style="color:#cc8800;">9%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">very</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">new</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-dim" style="width:1%"></div></div><span class="pct-val pct-val-lo">0%</span></div>
-                    </td>
-                </tr>
-
-                <!-- 실험 13: Temp 4 (극단) -->
-                <tr class="rw-warm">
-                    <td class="exp-num" style="color:#ffbb00;">13</td>
-                    <td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-04">4</span></td>
-                    <td><span class="sbadge sbadge-p">Top-P</span></td>
-                    <td class="val-text">p=0.5</td>
-                    <td class="result-cell">
-                        <span class="word-top" style="color:#ffbb00;">also</span>
-                        <span class="word-rest">, a, the, not, designed, an, now ···</span>
-                    </td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-yellow" style="width:71%"></div></div><span class="pct-val pct-val-yellow">7.14%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-yellow" style="width:52%;opacity:0.8"></div></div><span class="pct-val pct-val-yellow">5.17%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">also ★</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-yellow" style="width:51%;opacity:0.8"></div></div><span class="pct-val pct-val-yellow" style="color:#ffd700;font-weight:800;">5.12%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">not</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-yellow" style="width:50%;opacity:0.7"></div></div><span class="pct-val pct-val-yellow">5.04%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">designed</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-yellow" style="width:49%;opacity:0.7"></div></div><span class="pct-val pct-val-yellow">4.96%</span></div>
-                    </td>
-                </tr>
-
-                <!-- 실험 14: Temp 10 (극단) -->
-                <tr class="rw-red">
-                    <td class="exp-num" style="color:#ff5555;">14</td>
-                    <td class="input-code">The robots is</td>
-                    <td><span class="tbadge tbadge-10">10</span></td>
-                    <td><span class="sbadge sbadge-k">Top-K</span></td>
-                    <td class="val-text">기본값</td>
-                    <td class="result-cell">
-                        <span class="word-top" style="color:#ff7070;">designed</span>
-                        <span class="word-rest">, a, the, also, not, an, now ···</span>
-                    </td>
-                    <td class="pct-cell">
-                        <div class="pct-row"><span class="pct-word-label">a</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-red" style="width:50%"></div></div><span class="pct-val pct-val-red">5.03%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">the</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-red" style="width:44%;opacity:0.85"></div></div><span class="pct-val pct-val-red">4.42%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">also</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-red" style="width:44%;opacity:0.85"></div></div><span class="pct-val pct-val-red">4.41%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">not</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-red" style="width:44%;opacity:0.8"></div></div><span class="pct-val pct-val-red">4.38%</span></div>
-                        <div class="pct-row"><span class="pct-word-label">designed★</span><div class="pct-bar-bg"><div class="pct-bar-fill fill-red" style="width:43%;opacity:0.8"></div></div><span class="pct-val pct-val-red" style="color:#ff3333;font-weight:800;">4.35%</span></div>
-                    </td>
-                </tr>
-
-                </tbody>
-            </table>
-            </div>
-        </div>
-
-        <div class="notice-box">
-            ⚠️ <strong style="color:#ffa500;">전체 핵심 요약:</strong>
-            ① Temp 0.2~0.3 → <code>a</code>가 93~100% 독점.
-            ② Temp 0.5 → 후보 단어 자체가 <code>bit, little, combunation···</code>으로 교체.
-            ③ Temp 4 → 모든 단어가 4~7%로 평탄화, Top-P가 3위 <code>also</code> 선택.
-            ④ Temp 10 → 1위(5.03%)와 5위(4.35%)의 차이가 <strong>0.68%p</strong>뿐, 5위 <code>designed</code> 선택.
-            <strong style="color:#ff8080;">Temperature가 높을수록 확률이 평탄해져 예측이 불가능해진다.</strong>
-        </div>
-    </section>
-
-    <!-- ══════════ 1.3 실험 가설 ══════════ -->
-    <section>
-        <div class="section-number">1.3</div>
-        <div class="section-title">💡 실험 가설</div>
-        <p class="section-subtitle">실험 전, 미리 예상해 본 결과</p>
-        <div class="section-line"></div>
-        <div class="hypo-grid">
-            <div class="hypo-card hypo-temp">
-                <div class="hypo-icon">🌡️</div>
-                <div class="hypo-label">가설 1 — Temperature</div>
-                <div class="hypo-title">온도가 오르면 AI도 대담해진다</div>
-                <div class="hypo-body">
-                    온도를 <strong>낮추면</strong> AI가 보수적으로 행동해 항상 같은 단어만 고르고,
-                    온도를 <strong>높이면</strong> 진보적으로 행동해 더 다양하고 예측 불가능한 단어를 선택할 것이다.
-                </div>
-                <div class="analogy-box">
-                    <span class="analogy-icon">⚛️</span>
-                    <span class="analogy-text">
-                        마치 <strong>입자 운동</strong>처럼 — 온도가 낮으면 입자가 느리고 질서 있게,
-                        온도가 높으면 빠르고 무질서하게 움직이는 것과 같다.
-                    </span>
-                </div>
-            </div>
-            <div class="hypo-card hypo-topk">
-                <div class="hypo-icon">🏆</div>
-                <div class="hypo-label">가설 2 — Top-K</div>
-                <div class="hypo-title">K가 작으면 안전, 크면 신선</div>
-                <div class="hypo-body">
-                    후보를 <strong>5개</strong>로 제한하면 아주 평범하고 안전한 단어가,
-                    <strong>100개</strong>로 늘리면 신선하고 특이한 단어가 섞여 나올 것이다.
-                    K값이 결과 다양성을 직접 통제하는 손잡이가 된다.
-                </div>
-            </div>
-            <div class="hypo-card hypo-topp">
-                <div class="hypo-icon">📊</div>
-                <div class="hypo-label">가설 3 — Top-P</div>
-                <div class="hypo-title">확률의 합으로 스스로 조절</div>
-                <div class="hypo-body">
-                    Top-P는 고정 개수가 아닌 <strong>'누적 확률의 합'</strong>으로 후보를 결정하기 때문에,
-                    문맥이 명확할 때 가장 똑똑하게 단어를 골라낼 것이다.
-                    Top-K보다 <strong>문맥 적응력</strong>이 더 높을 것이다.
-                </div>
-            </div>
-        </div>
-    </section>
-
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-label">영재원 AI 파라미터 실험 보고서</div>
+  <h1 class="cover-title">Temperature, Top-P, Top-K<br><span>상관관계 분석</span></h1>
+  <p class="cover-subtitle">
+    AI가 다음 단어를 고를 때 Temperature, Top-P, Top-K가 각각 어떤 영향을 주는지 실험으로 알아봤다.
+  </p>
+  <div class="cover-meta">
+    <div><strong>데이터 규모</strong>360 rows · 12 프롬프트</div>
+    <div><strong>실험 조건</strong>단일 변수 통제 설계</div>
+    <div><strong>측정 지표</strong>상위 5개 토큰 예측 확률(%)</div>
+  </div>
 </div>
 
-<footer>
-    🔬 영재원 AI 탐구 실험 보고서 &nbsp;|&nbsp;
-    Transformer Explainer 샘플링 파라미터 분석 &nbsp;|&nbsp;
-    입력: "The robots is" &nbsp;|&nbsp; 총 14회 실험 (Temp 0.2 ~ 10)
-</footer>
+<div class="page">
+
+  <!-- 1. 실험 개요 -->
+  <div class="section">
+    <div class="section-num">SECTION 01</div>
+    <h2 class="section-title">실험 개요 및 배경</h2>
+
+    <p style="color:var(--text-dim); line-height:1.9; margin-bottom:16px;">
+      AI가 글을 쓸 때 다음에 올 단어를 그냥 하나 딱 고르는 게 아니라 여러 단어에 확률을 매겨서 그중 하나를 뽑는다.
+      <strong style="color:var(--text)">Temperature, Top-P, Top-K</strong>는 그 확률 분포에서 어떤 단어를 뽑을지를 조절하는 파라미터들이다.
+      이번 실험에서는 이 세 개를 하나씩 바꿔보면서 상위 5개 단어의 확률이 어떻게 달라지는지 측정해 봤다.
+    </p>
+
+    <div class="callout green">
+      <strong>실험 설계 (단일 변수 통제법)</strong><br>
+      · <strong>Temperature 통제</strong>: Top-K=0, Top-P=1.0 고정 → Temperature를 0.1 ~ 2.0으로 변화<br>
+      · <strong>Top-P 통제</strong>: Temperature=1.0, Top-K=0 고정 → Top-P를 0.05 ~ 0.99로 변화<br>
+      · <strong>Top-K 통제</strong>: Temperature=1.0, Top-P=1.0 고정 → Top-K를 1 ~ 500으로 변화<br>
+      · 총 12개 프롬프트 × 각 파라미터별 10~11개 수준 = 360개 관측값
+    </div>
+  </div>
+
+  <!-- 2. 가설 -->
+  <div class="section">
+    <div class="section-num">SECTION 02</div>
+    <h2 class="section-title">사전 가설</h2>
+    <p style="color:var(--text-dim); line-height:1.9; margin-bottom:20px;">
+      실험 전에 각 파라미터가 어떻게 작동할 것 같은지 먼저 생각해봤다.
+    </p>
+    <div class="hypo-grid">
+      <div class="hypo-card t">
+        <div class="hypo-tag">Temperature 가설</div>
+        <div class="hypo-text">
+          온도가 높을수록 나오는 단어의 양(다양성)이 많아질 것 같다.
+          온도가 낮으면 한 단어에 확률이 몰리고, 높으면 여러 단어로 골고루 퍼질 것 같다.
+        </div>
+      </div>
+      <div class="hypo-card p">
+        <div class="hypo-tag">Top-P 가설</div>
+        <div class="hypo-text">
+          Top-P의 P가 '프로그램(process)'의 P인 줄 알았다. 그래서 값이 클수록 컴퓨터 리소스를 더 많이 쓸 것 같다고 생각했다.
+        </div>
+      </div>
+      <div class="hypo-card k">
+        <div class="hypo-tag">Top-K 가설</div>
+        <div class="hypo-text">
+          Top-K는 가능성을 열어서 더 많은 단어를 검토하는 것 같다.
+          K값이 커지면 후보 단어가 많아지니까 확률도 그만큼 퍼질 것 같다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 파라미터 개념 정리 -->
+  <div class="section">
+    <div class="section-num">SECTION 03</div>
+    <h2 class="section-title">파라미터 개념 정리</h2>
+
+    <div class="callout">
+      <strong>Temperature (온도)</strong><br>
+      확률 분포 전체를 날카롭게 만들거나 평평하게 만드는 파라미터다.
+      각 단어의 점수(logit)를 Temperature로 나눈 다음 softmax를 적용하는 방식으로 작동한다.
+      <br><br>
+      · T가 0에 가까울수록: 제일 높은 확률의 단어에 거의 100% 집중됨<br>
+      · T = 1.0: 모델이 원래 학습한 분포 그대로 사용<br>
+      · T > 1.0: 확률이 고르게 펴져서 다양하고 창의적인 출력이 나옴
+    </div>
+
+    <div class="callout blue">
+      <strong>Top-P (Nucleus Sampling)</strong><br>
+      확률이 높은 단어들을 누적해서 합이 P가 될 때까지만 남기고 나머지는 다 제외하는 방식이다.
+      P는 'Probability(확률)'의 약자로, 리소스나 프로세스랑은 완전히 무관하다.
+      <br><br>
+      · Top-P = 0.05: 누적 확률 5%짜리 단어들만 허용 → 1위 단어 확률이 거의 100%<br>
+      · Top-P = 1.0: 모든 단어를 후보로 허용 (필터 없음)<br>
+      · 값이 클수록 후보 단어가 많아져서 확률이 분산됨
+    </div>
+
+    <div class="callout purple">
+      <strong>Top-K</strong><br>
+      확률 상위 K개 단어만 남기고 나머지는 전부 확률 0으로 만드는 방식이다.
+      <br><br>
+      · Top-K = 1: 무조건 1등 단어만 선택 → 1위 확률 100%<br>
+      · Top-K = 500: 상위 500개 단어를 후보로 허용 → 확률이 넓게 분산됨<br>
+      · K가 클수록 후보 단어가 많아져서 1위 단어의 확률이 상대적으로 낮아짐
+    </div>
+  </div>
+
+  <!-- 4. 실험 데이터 -->
+  <div class="section">
+    <div class="section-num">SECTION 04</div>
+    <h2 class="section-title">실험 데이터 요약</h2>
+
+    <div class="chart-block">
+      <div class="chart-label">4-1. Temperature별 1위 단어 평균 확률 (Top-K=0, Top-P=1.0 고정, 12개 프롬프트 평균)</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="chartTemp" height="280"></canvas>
+      </div>
+      <div class="fig-caption">Fig.1 — Temperature가 높아질수록 1위 단어 확률이 확 떨어진다. T=0.1에서 91.5%였는데 T=2.0에서는 0.9%까지 내려갔다.</div>
+    </div>
+
+    <div class="chart-block">
+      <div class="chart-label">4-2. Top-P별 1위 단어 평균 확률 (Temperature=1.0, Top-K=0 고정)</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="chartTopP" height="280"></canvas>
+      </div>
+      <div class="fig-caption">Fig.2 — Top-P가 낮을수록 후보 단어를 거의 안 허용하니까 1위 확률이 높다. P=0.05에서 92.1%, P=0.99에서 23.5%.</div>
+    </div>
+
+    <div class="chart-block">
+      <div class="chart-label">4-3. Top-K별 1위 단어 평균 확률 (Temperature=1.0, Top-P=1.0 고정)</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="chartTopK" height="280"></canvas>
+      </div>
+      <div class="fig-caption">Fig.3 — Top-K=1이면 확률이 100%, K=500에서는 26.5%로 떨어진다. K=0은 "제한 없음"을 뜻하는 특수값이다.</div>
+    </div>
+
+    <p style="margin-top: 32px; margin-bottom: 16px; font-weight:600;">대표 프롬프트 샘플 데이터 — "The secret to a happy life is"</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>조건</th>
+            <th>파라미터 값</th>
+            <th>1위 단어</th>
+            <th>1위 확률(%)</th>
+            <th>2위 단어</th>
+            <th>2위 확률(%)</th>
+            <th>3위 단어</th>
+            <th>3위 확률(%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge badge-orange">Temperature</span></td><td class="mono">0.1</td><td class="mono">to</td><td class="mono">99.9999</td><td class="mono">that</td><td class="mono">0.0001</td><td class="mono">not</td><td class="mono">0.0000</td></tr>
+          <tr><td><span class="badge badge-orange">Temperature</span></td><td class="mono">0.5</td><td class="mono">to</td><td class="mono">83.29</td><td class="mono">that</td><td class="mono">5.34</td><td class="mono">not</td><td class="mono">3.86</td></tr>
+          <tr><td><span class="badge badge-orange">Temperature</span></td><td class="mono">1.0</td><td class="mono">to</td><td class="mono">23.09</td><td class="mono">that</td><td class="mono">5.85</td><td class="mono">not</td><td class="mono">4.97</td></tr>
+          <tr><td><span class="badge badge-orange">Temperature</span></td><td class="mono">2.0</td><td class="mono">to</td><td class="mono">0.80</td><td class="mono">that</td><td class="mono">0.40</td><td class="mono">not</td><td class="mono">0.37</td></tr>
+          <tr><td><span class="badge badge-blue">Top-P</span></td><td class="mono">0.05</td><td class="mono">to</td><td class="mono">100.00</td><td class="mono">!</td><td class="mono">0.00</td><td class="mono">"</td><td class="mono">0.00</td></tr>
+          <tr><td><span class="badge badge-blue">Top-P</span></td><td class="mono">0.30</td><td class="mono">to</td><td class="mono">68.10</td><td class="mono">that</td><td class="mono">17.25</td><td class="mono">not</td><td class="mono">14.65</td></tr>
+          <tr><td><span class="badge badge-blue">Top-P</span></td><td class="mono">0.70</td><td class="mono">to</td><td class="mono">32.98</td><td class="mono">that</td><td class="mono">8.35</td><td class="mono">not</td><td class="mono">7.10</td></tr>
+          <tr><td><span class="badge badge-blue">Top-P</span></td><td class="mono">0.99</td><td class="mono">to</td><td class="mono">23.32</td><td class="mono">that</td><td class="mono">5.91</td><td class="mono">not</td><td class="mono">5.02</td></tr>
+          <tr><td><span class="badge badge-purple">Top-K</span></td><td class="mono">1</td><td class="mono">to</td><td class="mono">100.00</td><td class="mono">!</td><td class="mono">0.00</td><td class="mono">"</td><td class="mono">0.00</td></tr>
+          <tr><td><span class="badge badge-purple">Top-K</span></td><td class="mono">3</td><td class="mono">to</td><td class="mono">68.10</td><td class="mono">that</td><td class="mono">17.25</td><td class="mono">not</td><td class="mono">14.65</td></tr>
+          <tr><td><span class="badge badge-purple">Top-K</span></td><td class="mono">20</td><td class="mono">to</td><td class="mono">41.85</td><td class="mono">that</td><td class="mono">10.60</td><td class="mono">not</td><td class="mono">9.01</td></tr>
+          <tr><td><span class="badge badge-purple">Top-K</span></td><td class="mono">500</td><td class="mono">to</td><td class="mono">27.62</td><td class="mono">that</td><td class="mono">7.00</td><td class="mono">not</td><td class="mono">5.94</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. 가설 검증 -->
+  <div class="section">
+    <div class="section-num">SECTION 05</div>
+    <h2 class="section-title">가설 검증 결과</h2>
+
+    <div class="verdict-grid">
+      <div class="verdict-card">
+        <div class="verdict-icon">🌡️ ✅</div>
+        <div class="verdict-title" style="color:var(--accent-temp)">Temperature 가설 — 부분 맞음</div>
+        <div class="verdict-body">
+          "온도가 높을수록 단어 다양성이 늘어난다"는 <strong>맞았다.</strong>
+          T=0.1일 때 1위 단어가 91.5%를 독점했는데 T=2.0에서는 0.9%까지 떨어져서 확률이 고르게 퍼진다.
+          다만 "단어의 양"보다는 <strong>확률 분포가 얼마나 평탄한지</strong>로 표현하는 게 더 정확하다.
+        </div>
+      </div>
+      <div class="verdict-card">
+        <div class="verdict-icon">🔵 ❌→✅</div>
+        <div class="verdict-title" style="color:var(--accent-topp)">Top-P 가설 — 방향은 맞음</div>
+        <div class="verdict-body">
+          "리소스를 더 먹는다"는 틀렸다. P는 <strong>Probability(확률)</strong>의 약자고 리소스랑은 전혀 관계없다.
+          그런데 "P 값이 클수록 결과가 더 다양해진다"는 방향은 데이터로 확인됐다.
+          P=0.05 → 92.1%, P=0.99 → 23.5%로, <strong>낮을수록 집중, 높을수록 분산</strong>된다.
+        </div>
+      </div>
+      <div class="verdict-card">
+        <div class="verdict-icon">🔷 ✅</div>
+        <div class="verdict-title" style="color:var(--accent-topk)">Top-K 가설 — 정확히 맞음</div>
+        <div class="verdict-body">
+          "K가 클수록 더 많은 단어를 검토하고 확률이 분산된다"는 <strong>완전히 맞았다.</strong>
+          K=1에서 1위 확률 100%, K=500에서 26.5%로, K가 커질수록 후보 풀이 넓어지면서 확률이 나뉜다.
+          직관이 실제 작동 방식과 딱 맞은 가설이었다.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 파라미터 비교 분석 -->
+  <div class="section">
+    <div class="section-num">SECTION 06</div>
+    <h2 class="section-title">파라미터 비교 분석</h2>
+
+    <div class="chart-block">
+      <div class="chart-label">6-1. 세 파라미터의 "집중도 감소 효과" 비교 (정규화, 0=최대집중 / 1=최대분산)</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="chartCompare" height="300"></canvas>
+      </div>
+      <div class="fig-caption">Fig.4 — 세 파라미터 다 값이 커질수록 확률이 분산되는 방향은 같은데, 분산되는 속도랑 방식이 서로 다르다.</div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>파라미터</th>
+            <th>작동 방식</th>
+            <th>낮은 값 효과</th>
+            <th>높은 값 효과</th>
+            <th>핵심 특징</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-orange">Temperature</span></td>
+            <td style="color:var(--text-dim)">확률 분포 전체를 스케일링</td>
+            <td class="mono" style="color:var(--green)">집중 (결정론적)</td>
+            <td class="mono" style="color:var(--red)">분산 (창의적)</td>
+            <td style="color:var(--text-dim)">분포 모양 자체를 변형</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-blue">Top-P</span></td>
+            <td style="color:var(--text-dim)">누적확률 P 이하 단어만 허용</td>
+            <td class="mono" style="color:var(--green)">집중 (소수 단어만)</td>
+            <td class="mono" style="color:var(--red)">분산 (더 많은 후보)</td>
+            <td style="color:var(--text-dim)">문맥에 따라 후보 수가 달라짐</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-purple">Top-K</span></td>
+            <td style="color:var(--text-dim)">상위 K개 단어만 허용</td>
+            <td class="mono" style="color:var(--green)">집중 (K=1이면 100%)</td>
+            <td class="mono" style="color:var(--red)">분산 (더 많은 후보)</td>
+            <td style="color:var(--text-dim)">후보 개수가 K로 항상 고정</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout green" style="margin-top: 24px;">
+      <strong>Top-P랑 Top-K의 결정적인 차이</strong><br>
+      Top-K는 <em>항상</em> K개의 단어를 후보로 고정한다. 반면 Top-P는 문맥에 따라 후보 수가 달라진다.
+      예를 들어 1위 단어가 이미 85% 확률이면, Top-P=0.9에서는 후보가 1~2개밖에 없지만
+      Top-K=10이면 무조건 10개의 단어가 후보가 된다.
+      그래서 실제 AI에서는 <strong>Top-P가 Top-K보다 더 자연스럽게 작동</strong>한다고 알려져 있다.
+    </div>
+  </div>
+
+  <!-- 7. 결론 -->
+  <div class="section">
+    <div class="section-num">SECTION 07</div>
+    <h2 class="section-title">결론</h2>
+
+    <div class="conclusion-box">
+      <h3>실험하면서 알게 된 것</h3>
+      <p>
+        세 파라미터 모두 <strong>"값이 커질수록 확률이 분산되고, 작아질수록 한 단어에 집중된다"</strong>는
+        공통점이 있다. 그 점에서 세 파라미터 사이에 기능적인 상관관계가 있다고 볼 수 있다.
+      </p>
+      <p>
+        근데 작동하는 방식은 완전히 다르다.
+        Temperature는 분포 모양 자체를 바꾸고, Top-P는 누적 확률로 후보를 동적으로 자르고,
+        Top-K는 그냥 상위 K개만 남긴다.
+        실제 AI 시스템에서는 이 세 가지를 조합해서 쓰는데 서로 보완적인 역할을 한다.
+      </p>
+      <p>
+        가설 면에서는 <strong>Temperature랑 Top-K에 대한 생각이 대체로 맞았다.</strong>
+        Top-P는 메커니즘 설명이 틀렸는데, "값이 클수록 다양성이 높아진다"는 방향은 맞았다.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+Chart.defaults.color = '#8891a8';
+Chart.defaults.borderColor = '#2a2f40';
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const gridColor = 'rgba(42,47,64,0.8)';
+const tooltipBg = '#1c2030';
+
+// Temperature chart
+new Chart(document.getElementById('chartTemp'), {
+  type: 'line',
+  data: {
+    labels: ['0.1','0.3','0.5','0.7','0.9','1.0','1.3','1.5','1.7','2.0'],
+    datasets: [{
+      label: '1위 단어 평균 확률 (%)',
+      data: [91.51, 74.91, 59.75, 44.81, 30.00, 23.25, 8.77, 4.28, 2.19, 0.93],
+      borderColor: '#f97316',
+      backgroundColor: 'rgba(249,115,22,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#f97316',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.35
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Temperature 값', color: '#4a5068' }, grid: { color: gridColor } },
+      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+    }
+  }
+});
+
+// Top-P chart
+new Chart(document.getElementById('chartTopP'), {
+  type: 'line',
+  data: {
+    labels: ['0.05','0.1','0.2','0.3','0.5','0.7','0.8','0.9','0.95','0.99'],
+    datasets: [{
+      label: '1위 단어 평균 확률 (%)',
+      data: [92.12, 79.72, 68.04, 56.81, 43.81, 31.77, 28.84, 25.83, 24.47, 23.48],
+      borderColor: '#38bdf8',
+      backgroundColor: 'rgba(56,189,248,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#38bdf8',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.35
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Top-P 값', color: '#4a5068' }, grid: { color: gridColor } },
+      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+    }
+  }
+});
+
+// Top-K chart
+new Chart(document.getElementById('chartTopK'), {
+  type: 'line',
+  data: {
+    labels: ['1','2','3','5','8','10','20','50','100','500'],
+    datasets: [{
+      label: '1위 단어 평균 확률 (%)',
+      data: [100.0, 67.91, 56.68, 47.84, 42.24, 40.16, 35.42, 31.72, 29.76, 26.55],
+      borderColor: '#a78bfa',
+      backgroundColor: 'rgba(167,139,250,0.08)',
+      borderWidth: 2.5,
+      pointBackgroundColor: '#a78bfa',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.35
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+    },
+    scales: {
+      x: { title: { display: true, text: 'Top-K 값', color: '#4a5068' }, grid: { color: gridColor } },
+      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+    }
+  }
+});
+
+// Comparison chart (normalized 0~1, where 0=max focus, 1=max dispersion)
+// Temperature: 91.51 → 0.93, normalize: (91.51 - 0.93) / (91.51 - 0.93) = 0 to 1
+// For display, let's use (value - min)/(max - min) inverted so small val = 0
+const normalize = (arr) => {
+  const mn = Math.min(...arr), mx = Math.max(...arr);
+  return arr.map(v => ((mx - v) / (mx - mn)).toFixed(3));
+};
+
+const tempVals = [91.51, 74.91, 59.75, 44.81, 30.00, 23.25, 8.77, 4.28, 2.19, 0.93];
+const toppVals = [92.12, 79.72, 68.04, 56.81, 43.81, 31.77, 28.84, 25.83, 24.47, 23.48];
+const topkVals = [100.0, 67.91, 56.68, 47.84, 42.24, 40.16, 35.42, 31.72, 29.76, 26.55];
+
+new Chart(document.getElementById('chartCompare'), {
+  type: 'line',
+  data: {
+    labels: ['최소','','','','','','','','','최대'],
+    datasets: [
+      {
+        label: 'Temperature',
+        data: normalize(tempVals),
+        borderColor: '#f97316',
+        backgroundColor: 'rgba(249,115,22,0)',
+        borderWidth: 2,
+        pointRadius: 3,
+        tension: 0.35
+      },
+      {
+        label: 'Top-P',
+        data: normalize(toppVals),
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56,189,248,0)',
+        borderWidth: 2,
+        pointRadius: 3,
+        tension: 0.35,
+        borderDash: [5,3]
+      },
+      {
+        label: 'Top-K',
+        data: normalize(topkVals),
+        borderColor: '#a78bfa',
+        backgroundColor: 'rgba(167,139,250,0)',
+        borderWidth: 2,
+        pointRadius: 3,
+        tension: 0.35,
+        borderDash: [2,2]
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+        labels: { color: '#8891a8', boxWidth: 18, padding: 20, font: { size: 11 } }
+      },
+      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: '파라미터 값 (정규화된 스케일 — 0: 최솟값, 1: 최댓값)', color: '#4a5068' },
+        grid: { color: gridColor }
+      },
+      y: {
+        title: { display: true, text: '분산도 (0=집중, 1=분산)', color: '#4a5068' },
+        grid: { color: gridColor }, min: 0, max: 1
+      }
+    }
+  }
+});
+</script>
 </body>
 </html>
