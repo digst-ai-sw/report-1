@@ -4,31 +4,67 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI 파라미터 실험 보고서 — Temperature · Top-P · Top-K</title>
-<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=IBM+Plex+Mono:wght@400;600&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0f14;
-    --surface: #14171f;
-    --surface2: #1c2030;
-    --border: #2a2f40;
-    --accent-temp: #f97316;
-    --accent-topp: #38bdf8;
-    --accent-topk: #a78bfa;
-    --text: #e8eaf2;
-    --text-dim: #8891a8;
-    --text-faint: #4a5068;
-    --green: #4ade80;
-    --red: #f87171;
+    /* Colors - Figma Brand & Surface */
+    --black: #000000;
+    --white: #FFFFFF;
+    --canvas: #FFFFFF;
+    --inverse-canvas: #000000;
+    --surface-soft: #F5F5F5;
+    --hairline: #E6E6E6;
+    --hairline-soft: #F0F0F0;
+    
+    /* Color Blocks */
+    --block-lime: #DAFF5F;
+    --block-lilac: #C5B3FF;
+    --block-cream: #FFF4E6;
+    --block-mint: #C7F5E8;
+    --block-pink: #FFD6E8;
+    --block-coral: #FFB8A3;
+    --block-navy: #1E1E3F;
+    
+    /* Text */
+    --ink: #000000;
+    --ink-soft: #666666;
+    --inverse-ink: #FFFFFF;
+    
+    /* Semantic */
+    --success: #10B981;
+    
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-xxl: 48px;
+    --spacing-section: 96px;
+    
+    /* Rounded */
+    --rounded-md: 8px;
+    --rounded-lg: 24px;
+    --rounded-pill: 50px;
+    --rounded-full: 9999px;
   }
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  *, *::before, *::after { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+  }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Pretendard', sans-serif;
-    font-size: 15px;
-    line-height: 1.7;
-    min-height: 100vh;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    font-size: 18px;
+    font-weight: 320;
+    line-height: 1.45;
+    letter-spacing: -0.26px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* ── COVER ── */
@@ -39,219 +75,410 @@
     justify-content: center;
     align-items: flex-start;
     padding: 80px 10vw;
-    position: relative;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border);
+    max-width: 1280px;
+    margin: 0 auto;
   }
-  .cover::before {
-    content: '';
-    position: absolute; inset: 0;
-    background:
-      radial-gradient(ellipse 70% 50% at 80% 40%, rgba(56,189,248,.07) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 60% at 20% 80%, rgba(249,115,22,.06) 0%, transparent 55%),
-      radial-gradient(ellipse 40% 40% at 60% 10%, rgba(167,139,250,.06) 0%, transparent 50%);
-    pointer-events: none;
-  }
+  
   .cover-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    letter-spacing: .2em;
-    color: var(--text-faint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: 0.54px;
     text-transform: uppercase;
+    color: var(--ink-soft);
     margin-bottom: 28px;
   }
-  .cover-title {
-    font-family: 'Nanum Myeongjo', serif;
-    font-size: clamp(32px, 5vw, 62px);
-    font-weight: 800;
-    line-height: 1.2;
-    margin-bottom: 20px;
-    max-width: 700px;
+  
+    .cover-title {
+    font-size: clamp(48px, 6vw, 86px);
+    font-weight: 340;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    max-width: 900px;
   }
-  .cover-title span { color: var(--accent-temp); }
+  
   .cover-subtitle {
-    font-size: 17px;
-    color: var(--text-dim);
-    max-width: 560px;
+    font-size: 26px;
+    font-weight: 340;
+    line-height: 1.35;
+    letter-spacing: -0.26px;
+    max-width: 640px;
     margin-bottom: 48px;
-    line-height: 1.8;
   }
+  
   .cover-meta {
-    display: flex; gap: 40px; flex-wrap: wrap;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    color: var(--text-faint);
+    display: flex; 
+    gap: 40px; 
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink-soft);
   }
-  .cover-meta strong { color: var(--text-dim); display: block; margin-bottom: 2px; }
+  
+  .cover-meta strong { 
+    color: var(--ink); 
+    display: block; 
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 12px;
+  }
 
   /* ── LAYOUT ── */
-  .page { max-width: 900px; margin: 0 auto; padding: 80px 40px; }
-
-  /* ── SECTION ── */
-  .section { margin-bottom: 80px; }
-  .section-num {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--text-faint);
-    letter-spacing: .15em;
-    margin-bottom: 10px;
+  .page { 
+    max-width: 1280px; 
+    margin: 0 auto; 
+    padding: 0 var(--spacing-xxl);
   }
+  
+  .section { 
+    margin-bottom: var(--spacing-section);
+  }
+  
+  .section-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: 0.54px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  
   .section-title {
-    font-family: 'Nanum Myeongjo', serif;
+    font-size: 64px;
+    font-weight: 340;
+    line-height: 1.1;
+    letter-spacing: -0.96px;
+    margin-bottom: 32px;
+  }
+  
+  .section-intro {
     font-size: 26px;
-    font-weight: 700;
-    margin-bottom: 24px;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--border);
+    font-weight: 340;
+    line-height: 1.35;
+    letter-spacing: -0.26px;
+    margin-bottom: 32px;
+    max-width: 800px;
+  }
+
+  /* ── COLOR BLOCK SECTIONS ── */
+  .color-block {
+    background: var(--block-lime);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-xxl);
+    margin: var(--spacing-section) 0;
+  }
+  
+  .color-block.lilac { background: var(--block-lilac); }
+  .color-block.cream { background: var(--block-cream); }
+  .color-block.mint { background: var(--block-mint); }
+  .color-block.pink { background: var(--block-pink); }
+  .color-block.coral { background: var(--block-coral); }
+  .color-block.navy { 
+    background: var(--block-navy); 
+    color: var(--inverse-ink);
+  }
+  
+  .color-block .section-eyebrow {
+    color: inherit;
+    opacity: 0.7;
+  }
+  
+  .color-block .section-title {
+    font-size: 48px;
+    line-height: 1.1;
+    letter-spacing: -0.72px;
   }
 
   /* ── CALLOUT BOXES ── */
   .callout {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--accent-temp);
-    border-radius: 8px;
-    padding: 20px 24px;
-    margin: 24px 0;
-    font-size: 14px;
-    color: var(--text-dim);
-    line-height: 1.8;
+    background: var(--surface-soft);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+    font-size: 18px;
+    font-weight: 320;
+    line-height: 1.45;
   }
-  .callout.blue { border-left-color: var(--accent-topp); }
-  .callout.purple { border-left-color: var(--accent-topk); }
-  .callout.green { border-left-color: var(--green); }
-  .callout strong { color: var(--text); }
+  
+  .callout strong { 
+    font-weight: 540;
+    display: block;
+    margin-bottom: 12px;
+    font-size: 20px;
+  }
 
   /* ── TABLE ── */
-  .tbl-wrap { overflow-x: auto; margin: 24px 0; border-radius: 10px; border: 1px solid var(--border); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl-wrap { 
+    overflow-x: auto; 
+    margin: var(--spacing-lg) 0; 
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--hairline);
+  }
+  
+  table { 
+    width: 100%; 
+    border-collapse: collapse; 
+  }
+  
   th {
-    background: var(--surface2);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    letter-spacing: .08em;
-    color: var(--text-faint);
-    padding: 12px 16px;
+    background: var(--surface-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 16px;
     text-align: left;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--hairline);
   }
+  
   td {
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(42,47,64,.5);
-    color: var(--text-dim);
-    font-size: 13px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--hairline-soft);
+    font-size: 16px;
+    font-weight: 330;
   }
+  
   tr:last-child td { border-bottom: none; }
-  tr:hover td { background: rgba(255,255,255,.02); }
-  .mono { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+  
+  .mono { 
+    font-family: 'JetBrains Mono', monospace; 
+    font-size: 14px;
+    font-weight: 400;
+  }
+  
   .badge {
     display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: var(--rounded-pill);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
-  .badge-orange { background: rgba(249,115,22,.15); color: var(--accent-temp); }
-  .badge-blue   { background: rgba(56,189,248,.15);  color: var(--accent-topp); }
-  .badge-purple { background: rgba(167,139,250,.15); color: var(--accent-topk); }
+  
+  .badge-orange { background: #FFF4E6; color: #EA580C; }
+  .badge-blue   { background: #EFF6FF; color: #0284C7; }
+  .badge-purple { background: #F5F3FF; color: #7C3AED; }
 
-  /* ── CHART WRAPPER ── */
-  .chart-block { margin: 32px 0; }
+  /* ── CHART ── */
+  .chart-block { 
+    margin: var(--spacing-xl) 0; 
+  }
+  
   .chart-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    color: var(--text-faint);
-    letter-spacing: .12em;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 16px;
+  }
+  
+  .chart-canvas-wrap {
+    background: var(--surface-soft);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-xl);
+  }
+  
+  canvas { 
+    display: block; 
+    width: 100% !important; 
+  }
+  
+  .fig-caption {
+    font-size: 16px;
+    font-weight: 330;
+    color: var(--ink-soft);
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+
+  /* ── HYPOTHESIS CARDS ── */
+  .hypo-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    gap: var(--spacing-lg); 
+    margin: var(--spacing-lg) 0; 
+  }
+  
+  .hypo-card {
+    background: var(--surface-soft);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-lg);
+  }
+  
+  .hypo-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     margin-bottom: 12px;
   }
-  .chart-canvas-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 28px;
-    position: relative;
+  
+  .hypo-card.t .hypo-tag { color: #EA580C; }
+  .hypo-card.p .hypo-tag { color: #0284C7; }
+  .hypo-card.k .hypo-tag { color: #7C3AED; }
+  
+  .hypo-text { 
+    font-size: 16px; 
+    font-weight: 330;
+    line-height: 1.5; 
   }
-  canvas { display: block; width: 100% !important; }
 
-  /* ── HYPOTHESIS CARDS ── */
-  .hypo-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 16px; margin: 24px 0; }
-  .hypo-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 22px 20px;
-    position: relative;
-    overflow: hidden;
+  /* ── VERDICT CARDS ── */
+  .verdict-grid { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    gap: var(--spacing-lg); 
+    margin: var(--spacing-lg) 0; 
   }
-  .hypo-card::after {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  }
-  .hypo-card.t::after  { background: var(--accent-temp); }
-  .hypo-card.p::after  { background: var(--accent-topp); }
-  .hypo-card.k::after  { background: var(--accent-topk); }
-  .hypo-tag {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 10px;
-    letter-spacing: .15em;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-  }
-  .hypo-card.t .hypo-tag { color: var(--accent-temp); }
-  .hypo-card.p .hypo-tag { color: var(--accent-topp); }
-  .hypo-card.k .hypo-tag { color: var(--accent-topk); }
-  .hypo-text { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
-
-  /* ── RESULT VERDICT ── */
-  .verdict-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)); gap: 16px; margin: 24px 0; }
+  
   .verdict-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 22px 20px;
+    background: var(--surface-soft);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-lg);
   }
-  .verdict-icon { font-size: 22px; margin-bottom: 10px; }
-  .verdict-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
-  .verdict-body { font-size: 13px; color: var(--text-dim); line-height: 1.7; }
-
-  /* ── FIGURE CAPTION ── */
-  .fig-caption {
-    font-size: 12px;
-    color: var(--text-faint);
-    margin-top: 10px;
-    font-style: italic;
-    text-align: center;
+  
+  .verdict-icon { 
+    font-size: 32px; 
+    margin-bottom: 12px; 
+  }
+  
+  .verdict-title { 
+    font-weight: 540; 
+    font-size: 20px; 
+    margin-bottom: 12px;
+    line-height: 1.3;
+  }
+  
+  .verdict-body { 
+    font-size: 16px; 
+    font-weight: 330;
+    line-height: 1.5; 
   }
 
   /* ── CONCLUSION BOX ── */
   .conclusion-box {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    margin: 24px 0;
+    background: var(--surface-soft);
+    border-radius: var(--rounded-lg);
+    padding: var(--spacing-xxl);
+    margin: var(--spacing-lg) 0;
   }
+  
   .conclusion-box h3 {
-    font-family: 'Nanum Myeongjo', serif;
-    font-size: 18px;
-    margin-bottom: 16px;
-    color: var(--text);
+    font-size: 26px;
+    font-weight: 540;
+    line-height: 1.35;
+    letter-spacing: -0.26px;
+    margin-bottom: 20px;
   }
-  .conclusion-box p { font-size: 14px; color: var(--text-dim); line-height: 1.9; margin-bottom: 12px; }
-  .conclusion-box p:last-child { margin-bottom: 0; }
+  
+  .conclusion-box p { 
+    font-size: 18px; 
+    font-weight: 320;
+    line-height: 1.6; 
+    margin-bottom: 16px; 
+  }
+  
+  .conclusion-box p:last-child { 
+    margin-bottom: 0; 
+  }
 
-  hr.divider {
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-block;
+    padding: 10px 24px;
+    border-radius: var(--rounded-pill);
+    font-size: 20px;
+    font-weight: 480;
+    line-height: 1.4;
+    letter-spacing: -0.1px;
+    text-decoration: none;
     border: none;
-    border-top: 1px solid var(--border);
-    margin: 60px 0;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  
+  .btn:active {
+    transform: scale(0.98);
+  }
+  
+  .btn-primary {
+    background: var(--black);
+    color: var(--white);
+  }
+  
+  .btn-secondary {
+    background: var(--white);
+    color: var(--black);
+    border: 1px solid var(--hairline);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 960px) {
+    .cover {
+      padding: 60px 6vw;
+    }
+    
+    .page {
+      padding: 0 var(--spacing-lg);
+    }
+    
+    .section-title {
+      font-size: 48px;
+    }
+    
+    .color-block .section-title {
+      font-size: 36px;
+    }
+    
+    .section-intro {
+      font-size: 20px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .color-block {
+      border-radius: 0;
+      margin-left: calc(-1 * var(--spacing-lg));
+      margin-right: calc(-1 * var(--spacing-lg));
+    }
+    
+    .cover-title {
+      font-size: 48px;
+    }
+    
+    .section-title {
+      font-size: 36px;
+      letter-spacing: -0.5px;
+    }
   }
 
   /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar { 
+    width: 8px; 
+    height: 8px; 
+  }
+  
+  ::-webkit-scrollbar-track { 
+    background: var(--canvas); 
+  }
+  
+  ::-webkit-scrollbar-thumb { 
+    background: var(--hairline); 
+    border-radius: 4px; 
+  }
 </style>
 </head>
 <body>
@@ -259,7 +486,7 @@
 <!-- COVER -->
 <div class="cover">
   <div class="cover-label">영재원 AI 파라미터 실험 보고서</div>
-  <h1 class="cover-title">Temperature, Top-P, Top-K<br><span>상관관계 분석</span></h1>
+  <h1 class="cover-title">Temperature, Top-P, Top-K 상관관계 분석</h1>
   <p class="cover-subtitle">
     AI가 다음 단어를 고를 때 Temperature, Top-P, Top-K가 각각 어떤 영향을 주는지 실험으로 알아봤다.
   </p>
@@ -274,29 +501,29 @@
 
   <!-- 1. 실험 개요 -->
   <div class="section">
-    <div class="section-num">SECTION 01</div>
+    <div class="section-eyebrow">SECTION 01</div>
     <h2 class="section-title">실험 개요 및 배경</h2>
 
-    <p style="color:var(--text-dim); line-height:1.9; margin-bottom:16px;">
+    <p style="margin-bottom:24px;">
       AI가 글을 쓸 때 다음에 올 단어를 그냥 하나 딱 고르는 게 아니라 여러 단어에 확률을 매겨서 그중 하나를 뽑는다.
-      <strong style="color:var(--text)">Temperature, Top-P, Top-K</strong>는 그 확률 분포에서 어떤 단어를 뽑을지를 조절하는 파라미터들이다.
+      <strong style="font-weight:540;">Temperature, Top-P, Top-K</strong>는 그 확률 분포에서 어떤 단어를 뽑을지를 조절하는 파라미터들이다.
       이번 실험에서는 이 세 개를 하나씩 바꿔보면서 상위 5개 단어의 확률이 어떻게 달라지는지 측정해 봤다.
     </p>
 
-    <div class="callout green">
-      <strong>실험 설계 (단일 변수 통제법)</strong><br>
-      · <strong>Temperature 통제</strong>: Top-K=0, Top-P=1.0 고정 → Temperature를 0.1 ~ 2.0으로 변화<br>
-      · <strong>Top-P 통제</strong>: Temperature=1.0, Top-K=0 고정 → Top-P를 0.05 ~ 0.99로 변화<br>
-      · <strong>Top-K 통제</strong>: Temperature=1.0, Top-P=1.0 고정 → Top-K를 1 ~ 500으로 변화<br>
+    <div class="callout">
+      <strong>실험 설계 (단일 변수 통제법)</strong>
+      · <strong style="font-weight:540;">Temperature 통제</strong>: Top-K=0, Top-P=1.0 고정 → Temperature를 0.1 ~ 2.0으로 변화<br>
+      · <strong style="font-weight:540;">Top-P 통제</strong>: Temperature=1.0, Top-K=0 고정 → Top-P를 0.05 ~ 0.99로 변화<br>
+      · <strong style="font-weight:540;">Top-K 통제</strong>: Temperature=1.0, Top-P=1.0 고정 → Top-K를 1 ~ 500으로 변화<br>
       · 총 12개 프롬프트 × 각 파라미터별 10~11개 수준 = 360개 관측값
     </div>
   </div>
 
   <!-- 2. 가설 -->
-  <div class="section">
-    <div class="section-num">SECTION 02</div>
+  <div class="color-block lilac">
+    <div class="section-eyebrow">SECTION 02</div>
     <h2 class="section-title">사전 가설</h2>
-    <p style="color:var(--text-dim); line-height:1.9; margin-bottom:20px;">
+    <p style="font-size:20px; font-weight:330; line-height:1.5; margin-bottom:32px;">
       실험 전에 각 파라미터가 어떻게 작동할 것 같은지 먼저 생각해봤다.
     </p>
     <div class="hypo-grid">
@@ -325,11 +552,11 @@
 
   <!-- 3. 파라미터 개념 정리 -->
   <div class="section">
-    <div class="section-num">SECTION 03</div>
+    <div class="section-eyebrow">SECTION 03</div>
     <h2 class="section-title">파라미터 개념 정리</h2>
 
     <div class="callout">
-      <strong>Temperature (온도)</strong><br>
+      <strong>Temperature (온도)</strong>
       확률 분포 전체를 날카롭게 만들거나 평평하게 만드는 파라미터다.
       각 단어의 점수(logit)를 Temperature로 나눈 다음 softmax를 적용하는 방식으로 작동한다.
       <br><br>
@@ -338,8 +565,8 @@
       · T > 1.0: 확률이 고르게 펴져서 다양하고 창의적인 출력이 나옴
     </div>
 
-    <div class="callout blue">
-      <strong>Top-P (Nucleus Sampling)</strong><br>
+    <div class="callout">
+      <strong>Top-P (Nucleus Sampling)</strong>
       확률이 높은 단어들을 누적해서 합이 P가 될 때까지만 남기고 나머지는 다 제외하는 방식이다.
       P는 'Probability(확률)'의 약자로, 리소스나 프로세스랑은 완전히 무관하다.
       <br><br>
@@ -348,8 +575,8 @@
       · 값이 클수록 후보 단어가 많아져서 확률이 분산됨
     </div>
 
-    <div class="callout purple">
-      <strong>Top-K</strong><br>
+    <div class="callout">
+      <strong>Top-K</strong>
       확률 상위 K개 단어만 남기고 나머지는 전부 확률 0으로 만드는 방식이다.
       <br><br>
       · Top-K = 1: 무조건 1등 단어만 선택 → 1위 확률 100%<br>
@@ -360,7 +587,7 @@
 
   <!-- 4. 실험 데이터 -->
   <div class="section">
-    <div class="section-num">SECTION 04</div>
+    <div class="section-eyebrow">SECTION 04</div>
     <h2 class="section-title">실험 데이터 요약</h2>
 
     <div class="chart-block">
@@ -387,7 +614,7 @@
       <div class="fig-caption">Fig.3 — Top-K=1이면 확률이 100%, K=500에서는 26.5%로 떨어진다. K=0은 "제한 없음"을 뜻하는 특수값이다.</div>
     </div>
 
-    <p style="margin-top: 32px; margin-bottom: 16px; font-weight:600;">대표 프롬프트 샘플 데이터 — "The secret to a happy life is"</p>
+    <p style="margin-top: 48px; margin-bottom: 20px; font-weight:540; font-size:20px;">대표 프롬프트 샘플 데이터 — "The secret to a happy life is"</p>
 
     <div class="tbl-wrap">
       <table>
@@ -422,34 +649,34 @@
   </div>
 
   <!-- 5. 가설 검증 -->
-  <div class="section">
-    <div class="section-num">SECTION 05</div>
+  <div class="color-block lime">
+    <div class="section-eyebrow">SECTION 05</div>
     <h2 class="section-title">가설 검증 결과</h2>
 
     <div class="verdict-grid">
       <div class="verdict-card">
         <div class="verdict-icon">🌡️ ✅</div>
-        <div class="verdict-title" style="color:var(--accent-temp)">Temperature 가설 — 부분 맞음</div>
+        <div class="verdict-title" style="color:#EA580C;">Temperature 가설 — 부분 맞음</div>
         <div class="verdict-body">
-          "온도가 높을수록 단어 다양성이 늘어난다"는 <strong>맞았다.</strong>
+          "온도가 높을수록 단어 다양성이 늘어난다"는 <strong style="font-weight:540;">맞았다.</strong>
           T=0.1일 때 1위 단어가 91.5%를 독점했는데 T=2.0에서는 0.9%까지 떨어져서 확률이 고르게 퍼진다.
-          다만 "단어의 양"보다는 <strong>확률 분포가 얼마나 평탄한지</strong>로 표현하는 게 더 정확하다.
+          다만 "단어의 양"보다는 <strong style="font-weight:540;">확률 분포가 얼마나 평탄한지</strong>로 표현하는 게 더 정확하다.
         </div>
       </div>
       <div class="verdict-card">
         <div class="verdict-icon">🔵 ❌→✅</div>
-        <div class="verdict-title" style="color:var(--accent-topp)">Top-P 가설 — 방향은 맞음</div>
+        <div class="verdict-title" style="color:#0284C7;">Top-P 가설 — 방향은 맞음</div>
         <div class="verdict-body">
-          "리소스를 더 먹는다"는 틀렸다. P는 <strong>Probability(확률)</strong>의 약자고 리소스랑은 전혀 관계없다.
+          "리소스를 더 먹는다"는 틀렸다. P는 <strong style="font-weight:540;">Probability(확률)</strong>의 약자고 리소스랑은 전혀 관계없다.
           그런데 "P 값이 클수록 결과가 더 다양해진다"는 방향은 데이터로 확인됐다.
-          P=0.05 → 92.1%, P=0.99 → 23.5%로, <strong>낮을수록 집중, 높을수록 분산</strong>된다.
+          P=0.05 → 92.1%, P=0.99 → 23.5%로, <strong style="font-weight:540;">낮을수록 집중, 높을수록 분산</strong>된다.
         </div>
       </div>
       <div class="verdict-card">
         <div class="verdict-icon">🔷 ✅</div>
-        <div class="verdict-title" style="color:var(--accent-topk)">Top-K 가설 — 정확히 맞음</div>
+        <div class="verdict-title" style="color:#7C3AED;">Top-K 가설 — 정확히 맞음</div>
         <div class="verdict-body">
-          "K가 클수록 더 많은 단어를 검토하고 확률이 분산된다"는 <strong>완전히 맞았다.</strong>
+          "K가 클수록 더 많은 단어를 검토하고 확률이 분산된다"는 <strong style="font-weight:540;">완전히 맞았다.</strong>
           K=1에서 1위 확률 100%, K=500에서 26.5%로, K가 커질수록 후보 풀이 넓어지면서 확률이 나뉜다.
           직관이 실제 작동 방식과 딱 맞은 가설이었다.
         </div>
@@ -459,7 +686,7 @@
 
   <!-- 6. 파라미터 비교 분석 -->
   <div class="section">
-    <div class="section-num">SECTION 06</div>
+    <div class="section-eyebrow">SECTION 06</div>
     <h2 class="section-title">파라미터 비교 분석</h2>
 
     <div class="chart-block">
@@ -484,93 +711,95 @@
         <tbody>
           <tr>
             <td><span class="badge badge-orange">Temperature</span></td>
-            <td style="color:var(--text-dim)">확률 분포 전체를 스케일링</td>
-            <td class="mono" style="color:var(--green)">집중 (결정론적)</td>
-            <td class="mono" style="color:var(--red)">분산 (창의적)</td>
-            <td style="color:var(--text-dim)">분포 모양 자체를 변형</td>
+            <td>확률 분포 전체를 스케일링</td>
+            <td class="mono" style="color:var(--success);">집중 (결정론적)</td>
+            <td class="mono" style="color:#DC2626;">분산 (창의적)</td>
+            <td>분포 모양 자체를 변형</td>
           </tr>
           <tr>
             <td><span class="badge badge-blue">Top-P</span></td>
-            <td style="color:var(--text-dim)">누적확률 P 이하 단어만 허용</td>
-            <td class="mono" style="color:var(--green)">집중 (소수 단어만)</td>
-            <td class="mono" style="color:var(--red)">분산 (더 많은 후보)</td>
-            <td style="color:var(--text-dim)">문맥에 따라 후보 수가 달라짐</td>
+            <td>누적확률 P 이하 단어만 허용</td>
+            <td class="mono" style="color:var(--success);">집중 (소수 단어만)</td>
+            <td class="mono" style="color:#DC2626;">분산 (더 많은 후보)</td>
+            <td>문맥에 따라 후보 수가 달라짐</td>
           </tr>
           <tr>
             <td><span class="badge badge-purple">Top-K</span></td>
-            <td style="color:var(--text-dim)">상위 K개 단어만 허용</td>
-            <td class="mono" style="color:var(--green)">집중 (K=1이면 100%)</td>
-            <td class="mono" style="color:var(--red)">분산 (더 많은 후보)</td>
-            <td style="color:var(--text-dim)">후보 개수가 K로 항상 고정</td>
+            <td>상위 K개 단어만 허용</td>
+            <td class="mono" style="color:var(--success);">집중 (K=1이면 100%)</td>
+            <td class="mono" style="color:#DC2626;">분산 (더 많은 후보)</td>
+            <td>후보 개수가 K로 항상 고정</td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="callout green" style="margin-top: 24px;">
-      <strong>Top-P랑 Top-K의 결정적인 차이</strong><br>
+    <div class="callout" style="margin-top: 32px;">
+      <strong>Top-P랑 Top-K의 결정적인 차이</strong>
       Top-K는 <em>항상</em> K개의 단어를 후보로 고정한다. 반면 Top-P는 문맥에 따라 후보 수가 달라진다.
       예를 들어 1위 단어가 이미 85% 확률이면, Top-P=0.9에서는 후보가 1~2개밖에 없지만
       Top-K=10이면 무조건 10개의 단어가 후보가 된다.
-      그래서 실제 AI에서는 <strong>Top-P가 Top-K보다 더 자연스럽게 작동</strong>한다고 알려져 있다.
+      그래서 실제 AI에서는 <strong style="font-weight:540;">Top-P가 Top-K보다 더 자연스럽게 작동</strong>한다고 알려져 있다.
     </div>
   </div>
-  <!-- 8. 실전 활용 가이드 -->
-  <div class="section">
-    <div class="section-num">SECTION 07</div>
-    <h2 class="section-title">AI 활용의 황금비율: 실전 레시피</h2>
-    <p style="color:var(--text-dim); line-height:1.9; margin-bottom:20px;">
-    실험 결과를 종합해 볼 때, 파라미터는 마치 요리의 <strong>'조미료'</strong>와 같다. 너무 많이 넣으면 맥락을 잃고, 너무 적게 넣으면 맛(개성)이 없다. 작업 목적에 맞는 최적의 조합을 제안한다.
-    </p>
 
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>작업 유형</th>
-            <th>권장 설정 (T / P / K)</th>
-            <th>기대 효과</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>논리적 추론 / 코드 작성</strong></td>
-            <td><span class="badge badge-orange">T: 0.1~0.3</span> <span class="badge badge-blue">P: 0.9</span></td>
-            <td>정답에 가까운 가장 확률 높은 단어만 선택하여 오류를 최소화함.</td>
-          </tr>
-          <tr>
-            <td><strong>일반적인 대화 / 요약</strong></td>
-            <td><span class="badge badge-orange">T: 0.7</span> <span class="badge badge-blue">P: 0.95</span></td>
-            <td>적당한 유연함을 갖추면서도 대화의 맥락을 놓치지 않는 '표준' 설정.</td>
-          </tr>
-          <tr>
-            <td><strong>창의적 글쓰기 / 시 / 소설</strong></td>
-            <td><span class="badge badge-orange">T: 0.9~1.2</span> <span class="badge badge-blue">P: 0.99</span></td>
-            <td>의외의 단어 선택을 허용하여 문학적 표현과 창의적인 전개를 유도함.</td>
-          </tr>
-          <tr>
-            <td><strong>브레인스토밍 / 아이디어</strong></td>
-            <td><span class="badge badge-orange">T: 1.5</span> <span class="badge badge-purple">K: 100</span></td>
-            <td>확률이 낮은 기발한 단어들을 대거 포함시켜 파격적인 아이디어를 출력.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+  <!-- 7. 실전 활용 가이드 -->
+  <div class="color-block coral">
+    <div class="section-eyebrow">SECTION 07</div>
+    <h2 class="section-title">AI 활용의 황금비율: 실전 레시피</h2>
+    <p style="font-size:20px; font-weight:330; line-height:1.5; margin-bottom:32px;">
+      실험 결과를 종합해 볼 때, 파라미터는 마치 요리의 <strong style="font-weight:540;">'조미료'</strong>와 같다. 너무 많이 넣으면 맥락을 잃고, 너무 적게 넣으면 맛(개성)이 없다. 작업 목적에 맞는 최적의 조합을 제안한다.
+    </p>
 
-    <div class="callout blue">
-      💡 <strong>Pro Tip: 온도(T)와 Top-P를 같이 쓸 때</strong><br>보통 <strong>Temperature를 먼저 조절</strong>하여 전체적인 분위기를 정하고, <strong>Top-P로 '선 넘는 단어'들만 컷오프</strong>하는 방식이 가장 효과적이다. 예를 들어 $T=1.0$으로 창의성을 높였더라도 P=0.8을 주면, 확률 하위 20%의 무의미한 단어(오타나 외계어 등)가 섞이는 것을 방지할 수 있다.
-    </div>
-  </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>작업 유형</th>
+            <th>권장 설정 (T / P / K)</th>
+            <th>기대 효과</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong style="font-weight:540;">논리적 추론 / 코드 작성</strong></td>
+            <td><span class="badge badge-orange">T: 0.1~0.3</span> <span class="badge badge-blue">P: 0.9</span></td>
+            <td>정답에 가까운 가장 확률 높은 단어만 선택하여 오류를 최소화함.</td>
+          </tr>
+          <tr>
+            <td><strong style="font-weight:540;">일반적인 대화 / 요약</strong></td>
+            <td><span class="badge badge-orange">T: 0.7</span> <span class="badge badge-blue">P: 0.95</span></td>
+            <td>적당한 유연함을 갖추면서도 대화의 맥락을 놓치지 않는 '표준' 설정.</td>
+          </tr>
+          <tr>
+            <td><strong style="font-weight:540;">창의적 글쓰기 / 시 / 소설</strong></td>
+            <td><span class="badge badge-orange">T: 0.9~1.2</span> <span class="badge badge-blue">P: 0.99</span></td>
+            <td>의외의 단어 선택을 허용하여 문학적 표현과 창의적인 전개를 유도함.</td>
+          </tr>
+          <tr>
+            <td><strong style="font-weight:540;">브레인스토밍 / 아이디어</strong></td>
+            <td><span class="badge badge-orange">T: 1.5</span> <span class="badge badge-purple">K: 100</span></td>
+            <td>확률이 낮은 기발한 단어들을 대거 포함시켜 파격적인 아이디어를 출력.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
-  <!-- 7. 결론 -->
-  <div class="section">
-    <div class="section-num">SECTION 08</div>
+    <div class="callout" style="background:rgba(255,255,255,0.4); margin-top:32px;">
+      <strong>💡 Pro Tip: 온도(T)와 Top-P를 같이 쓸 때</strong>
+      보통 <strong style="font-weight:540;">Temperature를 먼저 조절</strong>하여 전체적인 분위기를 정하고, <strong style="font-weight:540;">Top-P로 '선 넘는 단어'들만 컷오프</strong>하는 방식이 가장 효과적이다. 예를 들어 T=1.0으로 창의성을 높였더라도 P=0.8을 주면, 확률 하위 20%의 무의미한 단어(오타나 외계어 등)가 섞이는 것을 방지할 수 있다.
+    </div>
+  </div>
+
+  <!-- 8. 결론 -->
+  <div class="color-block navy">
+    <div class="section-eyebrow">SECTION 08</div>
     <h2 class="section-title">결론</h2>
 
-    <div class="conclusion-box">
+    <div class="conclusion-box" style="background:rgba(255,255,255,0.08);">
       <h3>실험하면서 알게 된 것</h3>
       <p>
-        세 파라미터 모두 <strong>"값이 커질수록 확률이 분산되고, 작아질수록 한 단어에 집중된다"</strong>는
+        세 파라미터 모두 <strong style="font-weight:540;">"값이 커질수록 확률이 분산되고, 작아질수록 한 단어에 집중된다"</strong>는
         공통점이 있다. 그 점에서 세 파라미터 사이에 기능적인 상관관계가 있다고 볼 수 있다.
       </p>
       <p>
@@ -580,7 +809,7 @@
         실제 AI 시스템에서는 이 세 가지를 조합해서 쓰는데 서로 보완적인 역할을 한다.
       </p>
       <p>
-        가설 면에서는 <strong>Temperature랑 Top-K에 대한 생각이 대체로 맞았다.</strong>
+        가설 면에서는 <strong style="font-weight:540;">Temperature랑 Top-K에 대한 생각이 대체로 맞았다.</strong>
         Top-P는 메커니즘 설명이 틀렸는데, "값이 클수록 다양성이 높아진다"는 방향은 맞았다.
       </p>
     </div>
@@ -590,13 +819,13 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-Chart.defaults.color = '#8891a8';
-Chart.defaults.borderColor = '#2a2f40';
-Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.color = '#666666';
+Chart.defaults.borderColor = '#E6E6E6';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
 Chart.defaults.font.size = 11;
 
-const gridColor = 'rgba(42,47,64,0.8)';
-const tooltipBg = '#1c2030';
+const gridColor = '#F0F0F0';
+const tooltipBg = '#000000';
 
 // Temperature chart
 new Chart(document.getElementById('chartTemp'), {
@@ -606,25 +835,41 @@ new Chart(document.getElementById('chartTemp'), {
     datasets: [{
       label: '1위 단어 평균 확률 (%)',
       data: [91.51, 74.91, 59.75, 44.81, 30.00, 23.25, 8.77, 4.28, 2.19, 0.93],
-      borderColor: '#f97316',
-      backgroundColor: 'rgba(249,115,22,0.08)',
-      borderWidth: 2.5,
-      pointBackgroundColor: '#f97316',
-      pointRadius: 4,
-      pointHoverRadius: 6,
+      borderColor: '#EA580C',
+      backgroundColor: 'rgba(234,88,12,0.1)',
+      borderWidth: 3,
+      pointBackgroundColor: '#EA580C',
+      pointRadius: 5,
+      pointHoverRadius: 7,
       fill: true,
-      tension: 0.35
+      tension: 0.4
     }]
   },
   options: {
     responsive: true,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+      tooltip: { 
+        backgroundColor: tooltipBg, 
+        titleColor: '#FFFFFF',
+        bodyColor: '#FFFFFF',
+        padding: 12,
+        cornerRadius: 8
+      }
     },
     scales: {
-      x: { title: { display: true, text: 'Temperature 값', color: '#4a5068' }, grid: { color: gridColor } },
-      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+      x: { 
+        title: { display: true, text: 'Temperature 값', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor },
+        ticks: { color: '#666666' }
+      },
+      y: { 
+        title: { display: true, text: '확률 (%)', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor }, 
+        min: 0, 
+        max: 100,
+        ticks: { color: '#666666' }
+      }
     }
   }
 });
@@ -637,25 +882,41 @@ new Chart(document.getElementById('chartTopP'), {
     datasets: [{
       label: '1위 단어 평균 확률 (%)',
       data: [92.12, 79.72, 68.04, 56.81, 43.81, 31.77, 28.84, 25.83, 24.47, 23.48],
-      borderColor: '#38bdf8',
-      backgroundColor: 'rgba(56,189,248,0.08)',
-      borderWidth: 2.5,
-      pointBackgroundColor: '#38bdf8',
-      pointRadius: 4,
-      pointHoverRadius: 6,
+      borderColor: '#0284C7',
+      backgroundColor: 'rgba(2,132,199,0.1)',
+      borderWidth: 3,
+      pointBackgroundColor: '#0284C7',
+      pointRadius: 5,
+      pointHoverRadius: 7,
       fill: true,
-      tension: 0.35
+      tension: 0.4
     }]
   },
   options: {
     responsive: true,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+      tooltip: { 
+        backgroundColor: tooltipBg, 
+        titleColor: '#FFFFFF',
+        bodyColor: '#FFFFFF',
+        padding: 12,
+        cornerRadius: 8
+      }
     },
     scales: {
-      x: { title: { display: true, text: 'Top-P 값', color: '#4a5068' }, grid: { color: gridColor } },
-      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+      x: { 
+        title: { display: true, text: 'Top-P 값', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor },
+        ticks: { color: '#666666' }
+      },
+      y: { 
+        title: { display: true, text: '확률 (%)', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor }, 
+        min: 0, 
+        max: 100,
+        ticks: { color: '#666666' }
+      }
     }
   }
 });
@@ -668,32 +929,46 @@ new Chart(document.getElementById('chartTopK'), {
     datasets: [{
       label: '1위 단어 평균 확률 (%)',
       data: [100.0, 67.91, 56.68, 47.84, 42.24, 40.16, 35.42, 31.72, 29.76, 26.55],
-      borderColor: '#a78bfa',
-      backgroundColor: 'rgba(167,139,250,0.08)',
-      borderWidth: 2.5,
-      pointBackgroundColor: '#a78bfa',
-      pointRadius: 4,
-      pointHoverRadius: 6,
+      borderColor: '#7C3AED',
+      backgroundColor: 'rgba(124,58,237,0.1)',
+      borderWidth: 3,
+      pointBackgroundColor: '#7C3AED',
+      pointRadius: 5,
+      pointHoverRadius: 7,
       fill: true,
-      tension: 0.35
+      tension: 0.4
     }]
   },
   options: {
     responsive: true,
     plugins: {
       legend: { display: false },
-      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+      tooltip: { 
+        backgroundColor: tooltipBg, 
+        titleColor: '#FFFFFF',
+        bodyColor: '#FFFFFF',
+        padding: 12,
+        cornerRadius: 8
+      }
     },
     scales: {
-      x: { title: { display: true, text: 'Top-K 값', color: '#4a5068' }, grid: { color: gridColor } },
-      y: { title: { display: true, text: '확률 (%)', color: '#4a5068' }, grid: { color: gridColor }, min: 0, max: 100 }
+      x: { 
+        title: { display: true, text: 'Top-K 값', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor },
+        ticks: { color: '#666666' }
+      },
+      y: { 
+        title: { display: true, text: '확률 (%)', color: '#666666', font: { size: 12 } }, 
+        grid: { color: gridColor }, 
+        min: 0, 
+        max: 100,
+        ticks: { color: '#666666' }
+      }
     }
   }
 });
 
-// Comparison chart (normalized 0~1, where 0=max focus, 1=max dispersion)
-// Temperature: 91.51 → 0.93, normalize: (91.51 - 0.93) / (91.51 - 0.93) = 0 to 1
-// For display, let's use (value - min)/(max - min) inverted so small val = 0
+// Comparison chart
 const normalize = (arr) => {
   const mn = Math.min(...arr), mx = Math.max(...arr);
   return arr.map(v => ((mx - v) / (mx - mn)).toFixed(3));
@@ -711,31 +986,29 @@ new Chart(document.getElementById('chartCompare'), {
       {
         label: 'Temperature',
         data: normalize(tempVals),
-        borderColor: '#f97316',
-        backgroundColor: 'rgba(249,115,22,0)',
-        borderWidth: 2,
-        pointRadius: 3,
-        tension: 0.35
+        borderColor: '#EA580C',
+        backgroundColor: 'rgba(234,88,12,0)',
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.4
       },
       {
         label: 'Top-P',
         data: normalize(toppVals),
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56,189,248,0)',
-        borderWidth: 2,
-        pointRadius: 3,
-        tension: 0.35,
-        borderDash: [5,3]
+        borderColor: '#0284C7',
+        backgroundColor: 'rgba(2,132,199,0)',
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.4
       },
       {
         label: 'Top-K',
         data: normalize(topkVals),
-        borderColor: '#a78bfa',
-        backgroundColor: 'rgba(167,139,250,0)',
-        borderWidth: 2,
-        pointRadius: 3,
-        tension: 0.35,
-        borderDash: [2,2]
+        borderColor: '#7C3AED',
+        backgroundColor: 'rgba(124,58,237,0)',
+        borderWidth: 3,
+        pointRadius: 4,
+        tension: 0.4
       }
     ]
   },
@@ -744,18 +1017,43 @@ new Chart(document.getElementById('chartCompare'), {
     plugins: {
       legend: {
         display: true,
-        labels: { color: '#8891a8', boxWidth: 18, padding: 20, font: { size: 11 } }
+        labels: { 
+          color: '#000000', 
+          boxWidth: 20, 
+          padding: 20, 
+          font: { size: 12, weight: 500 } 
+        }
       },
-      tooltip: { backgroundColor: tooltipBg, borderColor: '#2a2f40', borderWidth: 1 }
+      tooltip: { 
+        backgroundColor: tooltipBg, 
+        titleColor: '#FFFFFF',
+        bodyColor: '#FFFFFF',
+        padding: 12,
+        cornerRadius: 8
+      }
     },
     scales: {
       x: {
-        title: { display: true, text: '파라미터 값 (정규화된 스케일 — 0: 최솟값, 1: 최댓값)', color: '#4a5068' },
-        grid: { color: gridColor }
+        title: { 
+          display: true, 
+          text: '파라미터 값 (정규화된 스케일 — 0: 최솟값, 1: 최댓값)', 
+          color: '#666666',
+          font: { size: 12 }
+        },
+        grid: { color: gridColor },
+        ticks: { color: '#666666' }
       },
       y: {
-        title: { display: true, text: '분산도 (0=집중, 1=분산)', color: '#4a5068' },
-        grid: { color: gridColor }, min: 0, max: 1
+        title: { 
+          display: true, 
+          text: '분산도 (0=집중, 1=분산)', 
+          color: '#666666',
+          font: { size: 12 }
+        },
+        grid: { color: gridColor }, 
+        min: 0, 
+        max: 1,
+        ticks: { color: '#666666' }
       }
     }
   }
